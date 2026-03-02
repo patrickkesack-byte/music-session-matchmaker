@@ -2030,14 +2030,16 @@ const renderWriterCalendarEventsMonthView = (events) => {
       for (let d = 0; d < dotCount; d += 1) {
         const evt = dayEvents[d];
         const tooltip = `${evt.summary || "Untitled"} • ${formatCalendarEventTimeRange(evt)}`;
-        parts.push(`<span class="calendar-month-dot" title="${escapeHtml(tooltip)}"></span>`);
+        const safeTooltip = escapeHtml(tooltip);
+        parts.push(`<span class="calendar-month-dot" title="${safeTooltip}" data-tooltip="${safeTooltip}" tabindex="0"></span>`);
       }
       if (overflow > 0) {
         const overflowTitles = dayEvents
           .slice(dotCount)
           .map((evt) => `${evt.summary || "Untitled"} • ${formatCalendarEventTimeRange(evt)}`)
           .join(" | ");
-        parts.push(`<span class="calendar-month-more" title="${escapeHtml(overflowTitles)}">+${overflow}</span>`);
+        const safeOverflow = escapeHtml(overflowTitles);
+        parts.push(`<span class="calendar-month-more" title="${safeOverflow}" data-tooltip="${safeOverflow}" tabindex="0">+${overflow}</span>`);
       }
       parts.push(`</div>`);
     }
