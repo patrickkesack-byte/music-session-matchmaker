@@ -873,20 +873,26 @@ const saveScheduleRequests = (requests) => {
   localStorage.setItem(STORAGE_KEYS.scheduleRequests, JSON.stringify(requests));
 };
 
+const DEFAULT_GOOGLE_SETTINGS = {
+  clientId: String(googleClientIdInput?.value || "").trim(),
+  studioCalendarIds: normalizeCalendarIds(studioCalendarIdsInput?.value || ""),
+  icloudProxyUrl: String(icloudProxyUrlInput?.value || "").trim(),
+};
+
 const loadGoogleSettings = () => {
   const raw = localStorage.getItem(STORAGE_KEYS.googleSettings);
-  if (!raw) return { clientId: "", studioCalendarIds: [], icloudProxyUrl: "" };
+  if (!raw) return { ...DEFAULT_GOOGLE_SETTINGS };
   try {
     const parsed = JSON.parse(raw);
     return {
-      clientId: String(parsed.clientId || "").trim(),
+      clientId: String(parsed.clientId || DEFAULT_GOOGLE_SETTINGS.clientId).trim(),
       studioCalendarIds: Array.isArray(parsed.studioCalendarIds)
         ? parsed.studioCalendarIds.map((x) => String(x).trim()).filter(Boolean)
-        : [],
-      icloudProxyUrl: String(parsed.icloudProxyUrl || "").trim(),
+        : [...DEFAULT_GOOGLE_SETTINGS.studioCalendarIds],
+      icloudProxyUrl: String(parsed.icloudProxyUrl || DEFAULT_GOOGLE_SETTINGS.icloudProxyUrl).trim(),
     };
   } catch (_error) {
-    return { clientId: "", studioCalendarIds: [], icloudProxyUrl: "" };
+    return { ...DEFAULT_GOOGLE_SETTINGS };
   }
 };
 
@@ -1367,7 +1373,7 @@ const fetchIcloudIcsText = async (icsUrl) => {
     response = await fetch(fetchUrl, { method: "GET" });
   } catch (_error) {
     throw new Error(
-      "Unable to fetch iCloud calendar from browser. Set iCloud ICS Proxy URL (example: http://localhost:8787/ics?url=)."
+      "Unable to fetch iCloud calendar from browser. Check iCloud proxy settings."
     );
   }
   if (!response.ok) {
