@@ -22,6 +22,7 @@ const PAIRING_RESULTS_PAGE_SIZE = 10;
 const songwriterForm = document.getElementById("songwriter-form");
 const sessionForm = document.getElementById("session-form");
 const sessionLocationInput = document.getElementById("session-location");
+const appShell = document.querySelector(".app-shell");
 const authOpenButton = document.getElementById("auth-open");
 const authLogoutButton = document.getElementById("auth-logout");
 const authModal = document.getElementById("auth-modal");
@@ -542,6 +543,21 @@ const setAuthUi = () => {
   if (authOpenButton) authOpenButton.classList.toggle("hidden", loggedIn);
   if (authLogoutButton) authLogoutButton.classList.toggle("hidden", !loggedIn);
   if (authUserEmail) authUserEmail.textContent = loggedIn ? supabaseUser.email || "Signed in" : "";
+  if (document.body) {
+    document.body.classList.toggle("auth-required", !loggedIn);
+  }
+  if (appShell) {
+    appShell.setAttribute("aria-hidden", loggedIn ? "false" : "true");
+  }
+  if (authCloseButton) {
+    authCloseButton.classList.toggle("hidden", !loggedIn);
+  }
+  setAuthModalOpen(!loggedIn);
+  if (!loggedIn) {
+    setAuthStatus("Sign in required.", true);
+  } else {
+    setAuthStatus("");
+  }
 };
 
 const setScheduleStatus = (message, isError = false) => {
@@ -4043,6 +4059,7 @@ if (authOpenButton) {
 
 if (authCloseButton) {
   authCloseButton.addEventListener("click", () => {
+    if (!supabaseUser) return;
     setAuthModalOpen(false);
     setAuthStatus("");
   });
@@ -4051,6 +4068,7 @@ if (authCloseButton) {
 if (authModal) {
   authModal.addEventListener("click", (event) => {
     if (event.target === authModal) {
+      if (!supabaseUser) return;
       setAuthModalOpen(false);
       setAuthStatus("");
     }

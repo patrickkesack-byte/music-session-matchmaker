@@ -112,6 +112,13 @@ h1 {
   padding: 0 1.1rem;
 }
 
+body.auth-required .app-shell {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.3;
+  filter: grayscale(0.2);
+}
+
 .top-nav {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
