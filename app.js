@@ -60,6 +60,7 @@ const refreshCalendarEventsButton = document.getElementById("refresh-calendar-ev
 const calendarViewListButton = document.getElementById("calendar-view-list");
 const calendarViewCalendarButton = document.getElementById("calendar-view-calendar");
 const calendarMonthNav = document.getElementById("calendar-month-nav");
+const calendarMonthLabel = document.getElementById("calendar-month-label");
 const calendarMonthPrevButton = document.getElementById("calendar-month-prev");
 const calendarMonthNextButton = document.getElementById("calendar-month-next");
 const calendarMonthTodayButton = document.getElementById("calendar-month-today");
@@ -1906,6 +1907,12 @@ const setCalendarViewControlsVisibility = (isWriterSelected) => {
       !showToggle || calendarEventsViewMode !== "calendar"
     );
   }
+  if (calendarMonthLabel) {
+    calendarMonthLabel.textContent =
+      showToggle && calendarEventsViewMode === "calendar"
+        ? formatCalendarMonthHeading(calendarMonthCursor)
+        : "";
+  }
 };
 
 const formatCalendarEventDateRange = (event) => {
@@ -2850,7 +2857,7 @@ const renderWriterCalendarEvents = (writer, events) => {
   if (calendarEventsTitle) {
     calendarEventsTitle.textContent =
       calendarEventsViewMode === "calendar"
-        ? `${writer.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
+        ? `${writer.name}`
         : `${writer.name} Calendar`;
   }
 };
@@ -2879,7 +2886,7 @@ const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
   if (calendarEventsTitle) {
     calendarEventsTitle.textContent =
       calendarEventsViewMode === "calendar"
-        ? `${writer.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
+        ? `${writer.name}`
         : `${writer.name} Calendar`;
   }
   if (!writer.calendarId) {
