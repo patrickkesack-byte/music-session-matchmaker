@@ -1024,9 +1024,15 @@ const pullSongwritersFromSupabase = async () => {
     const remoteItems = (data || [])
       .map((row) => normalizeSongwriterRecord({ ...(row.data || {}), id: row.id, updatedAt: row.updated_at || Date.now() }));
     const localItems = loadSongwriters();
-    const merged = mergeSongwritersForSupabase(localItems, remoteItems);
-    if (JSON.stringify(localItems) !== JSON.stringify(merged)) {
-      saveSongwriters(merged, { skipRemote: true, skipSupabase: true });
+    // Supabase is authoritative while authenticated; this ensures deletes propagate.
+    const remoteSorted = remoteItems
+      .slice()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    const localSorted = localItems
+      .slice()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    if (JSON.stringify(localSorted) !== JSON.stringify(remoteSorted)) {
+      saveSongwriters(remoteSorted, { skipRemote: true, skipSupabase: true });
       renderSongwriters();
       renderLatestSessionResult();
       renderCalendarWriterList();
