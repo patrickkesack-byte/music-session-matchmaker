@@ -1948,30 +1948,35 @@ const formatCalendarEventTimeRange = (event) => {
 };
 
 const renderWriterCalendarEventsListView = (events) => {
-  const sorted = [...events].sort((a, b) => a.start - b.start).slice(0, 180);
-  if (!sorted.length) return "";
-  const grouped = new Map();
-  sorted.forEach((evt) => {
-    const key = evt.start.toISOString().slice(0, 10);
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(evt);
-  });
-
+  const now = Date.now();
+  const upcoming = events.filter((evt) => evt.start.getTime() >= now).slice(0, 30);
+  const recent = events
+    .filter((evt) => evt.start.getTime() < now)
+    .sort((a, b) => b.start - a.start)
+    .slice(0, 30);
   const sections = [];
-  Array.from(grouped.entries()).forEach(([dayKey, dayEvents]) => {
-    const dayDate = new Date(`${dayKey}T00:00:00`);
-    sections.push(`<section class="calendar-day-group"><p class="calendar-day-title">${escapeHtml(formatCalendarDayHeading(dayDate))}</p>`);
-    dayEvents.forEach((evt) => {
+  if (upcoming.length) {
+    sections.push("<div class='calendar-event-section'><p class='hint'>Upcoming</p>");
+    upcoming.forEach((evt) => {
       sections.push(
-        `<article class="calendar-schedule-item"><p class="calendar-schedule-time">${escapeHtml(formatCalendarEventTimeRange(
+        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
           evt
-        ))}</p><div class="calendar-schedule-content"><p class="calendar-event-title">${escapeHtml(
-          evt.summary || "Untitled"
-        )}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</div></article>`
+        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
       );
     });
-    sections.push("</section>");
-  });
+    sections.push("</div>");
+  }
+  if (recent.length) {
+    sections.push("<div class='calendar-event-section'><p class='hint'>Recent</p>");
+    recent.forEach((evt) => {
+      sections.push(
+        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
+          evt
+        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
+      );
+    });
+    sections.push("</div>");
+  }
 
   return sections.join("");
 };
@@ -2023,10 +2028,16 @@ const renderWriterCalendarEventsMonthView = (events) => {
     if (dayEvents.length) {
       parts.push(`<div class="calendar-month-dots" aria-label="${dayEvents.length} event(s)">`);
       for (let d = 0; d < dotCount; d += 1) {
-        parts.push(`<span class="calendar-month-dot"></span>`);
+        const evt = dayEvents[d];
+        const tooltip = `${evt.summary || "Untitled"} • ${formatCalendarEventTimeRange(evt)}`;
+        parts.push(`<span class="calendar-month-dot" title="${escapeHtml(tooltip)}"></span>`);
       }
       if (overflow > 0) {
-        parts.push(`<span class="calendar-month-more">+${overflow}</span>`);
+        const overflowTitles = dayEvents
+          .slice(dotCount)
+          .map((evt) => `${evt.summary || "Untitled"} • ${formatCalendarEventTimeRange(evt)}`)
+          .join(" | ");
+        parts.push(`<span class="calendar-month-more" title="${escapeHtml(overflowTitles)}">+${overflow}</span>`);
       }
       parts.push(`</div>`);
     }
