@@ -18,6 +18,8 @@ const PAIRING_STATUS = {
   moved: "moved-to-schedule",
 };
 const PAIRING_RESULTS_PAGE_SIZE = 10;
+const ORG_ALLOWED_EMAIL_DOMAIN = "insomniac.com";
+const SHARED_OWNER_ID = "00000000-0000-0000-0000-000000000001";
 
 const songwriterForm = document.getElementById("songwriter-form");
 const sessionForm = document.getElementById("session-form");
@@ -992,8 +994,14 @@ const stopSupabasePolling = () => {
   }
 };
 
+const isOrgSupabaseUser = (user) => {
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (!email || !email.includes("@")) return false;
+  return email.endsWith(`@${ORG_ALLOWED_EMAIL_DOMAIN}`);
+};
+
 const canUseSupabase = () =>
-  Boolean(supabaseClient && supabaseUser);
+  Boolean(supabaseClient && supabaseUser && isOrgSupabaseUser(supabaseUser));
 
 const mergeSongwritersForSupabase = (localItems, remoteItems) => {
   const mergedById = new Map();
@@ -1019,7 +1027,7 @@ const pullSongwritersFromSupabase = async () => {
     const { data, error } = await supabaseClient
       .from("songwriters")
       .select("id,data,updated_at")
-      .eq("owner_id", supabaseUser.id);
+      .eq("owner_id", SHARED_OWNER_ID);
     if (error) throw error;
     const remoteItems = (data || [])
       .map((row) => normalizeSongwriterRecord({ ...(row.data || {}), id: row.id, updatedAt: row.updated_at || Date.now() }));
@@ -1052,7 +1060,7 @@ const pushSongwritersToSupabase = async (items) => {
   const rows = normalizedItems.map((writer) => {
     const record = normalizeSongwriterRecord(writer);
     return {
-      owner_id: supabaseUser.id,
+      owner_id: SHARED_OWNER_ID,
       id: record.id,
       data: record,
       updated_at: record.updatedAt,
@@ -1070,7 +1078,7 @@ const pushSongwritersToSupabase = async (items) => {
   const { data: remoteRows, error: remoteError } = await supabaseClient
     .from("songwriters")
     .select("id")
-    .eq("owner_id", supabaseUser.id);
+    .eq("owner_id", SHARED_OWNER_ID);
   if (remoteError) throw remoteError;
 
   const staleIds = (remoteRows || [])
@@ -1085,7 +1093,7 @@ const pushSongwritersToSupabase = async (items) => {
     const { error: deleteError } = await supabaseClient
       .from("songwriters")
       .delete()
-      .eq("owner_id", supabaseUser.id)
+      .eq("owner_id", SHARED_OWNER_ID)
       .in("id", chunk);
     if (deleteError) throw deleteError;
   }
@@ -1129,6 +1137,11 @@ const initSupabaseClient = async () => {
     supabaseClient = window.supabase.createClient(settings.url, settings.anonKey);
     const { data } = await supabaseClient.auth.getSession();
     supabaseUser = data?.session?.user || null;
+    if (supabaseUser && !isOrgSupabaseUser(supabaseUser)) {
+      await supabaseClient.auth.signOut();
+      supabaseUser = null;
+      setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
+    }
     setAuthUi();
     if (supabaseUser) {
       stopSupabasePolling();
@@ -1138,6 +1151,11 @@ const initSupabaseClient = async () => {
     }
     supabaseClient.auth.onAuthStateChange((_event, session) => {
       supabaseUser = session?.user || null;
+      if (supabaseUser && !isOrgSupabaseUser(supabaseUser)) {
+        setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
+        supabaseClient.auth.signOut();
+        supabaseUser = null;
+      }
       setAuthUi();
       if (supabaseUser) {
         stopSupabasePolling();

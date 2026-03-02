@@ -10,6 +10,8 @@
 ## 2. Create database table + RLS
 1. Open Supabase SQL Editor.
 2. Run `/Users/patrick.kesack/Downloads/AI/music-session-matchmaker/supabase_schema.sql`.
+3. For one shared org-wide songwriter database (all logged-in org users share the same data), run:
+   - `/Users/patrick.kesack/Downloads/AI/music-session-matchmaker/supabase_org_shared.sql`
 
 ## 3. Configure app
 1. Open app.
