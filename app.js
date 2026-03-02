@@ -1042,7 +1042,8 @@ const pullSongwritersFromSupabase = async () => {
 
 const pushSongwritersToSupabase = async (items) => {
   if (!canUseSupabase()) return;
-  const rows = (items || []).map((writer) => {
+  const normalizedItems = (items || []).map(normalizeSongwriterRecord);
+  const rows = normalizedItems.map((writer) => {
     const record = normalizeSongwriterRecord(writer);
     return {
       owner_id: supabaseUser.id,
@@ -1051,11 +1052,37 @@ const pushSongwritersToSupabase = async (items) => {
       updated_at: record.updatedAt,
     };
   });
-  if (!rows.length) return;
-  const { error } = await supabaseClient
+  if (rows.length) {
+    const { error } = await supabaseClient
+      .from("songwriters")
+      .upsert(rows, { onConflict: "owner_id,id" });
+    if (error) throw error;
+  }
+
+  // Propagate deletions: remove remote rows not present in current local snapshot.
+  const localIds = new Set(normalizedItems.map((writer) => writer.id).filter(Boolean));
+  const { data: remoteRows, error: remoteError } = await supabaseClient
     .from("songwriters")
-    .upsert(rows, { onConflict: "owner_id,id" });
-  if (error) throw error;
+    .select("id")
+    .eq("owner_id", supabaseUser.id);
+  if (remoteError) throw remoteError;
+
+  const staleIds = (remoteRows || [])
+    .map((row) => row.id)
+    .filter((id) => id && !localIds.has(id));
+
+  if (!staleIds.length) return;
+
+  const chunkSize = 200;
+  for (let i = 0; i < staleIds.length; i += chunkSize) {
+    const chunk = staleIds.slice(i, i + chunkSize);
+    const { error: deleteError } = await supabaseClient
+      .from("songwriters")
+      .delete()
+      .eq("owner_id", supabaseUser.id)
+      .in("id", chunk);
+    if (deleteError) throw deleteError;
+  }
 };
 
 const queueSupabaseSongwriterPush = (songwriters) => {
