@@ -1,0 +1,2 @@
+name,location,personal_contact,manager_contact,preferred_contact,calendar_provider,calendar_name,roles,published,tags,bio,notes,roster,calendar_id
+"Writer Name","los angeles","writer@email.com","manager@email.com","email","icloud","Writer Calendar Name","topliner, co-writer",true,"dance pop, edm, anthemic, los angeles","Short bio here.","Optional notes.","publisher","https://example.com/writer-calendar.ics"

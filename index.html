@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SESSIONS</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Cpath fill="%23111111" d="M44 8v31.2a11 11 0 1 0 6 9.8V23.5l10-2.5V35a11 11 0 1 0 6 9.8V12.8z"/%3E%3C/svg%3E'
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape shape-a"></div>
+    <div class="bg-shape shape-b"></div>
+
+    <header class="hero">
+      <h1>SESSIONS</h1>
+      <div class="auth-controls">
+        <span id="auth-user-email" class="hint"></span>
+        <button id="auth-open" type="button" class="ghost mini-btn">Sign In</button>
+        <button id="auth-logout" type="button" class="ghost mini-btn hidden">Log Out</button>
+      </div>
+      <input type="hidden" id="google-client-id" value="" />
+      <input type="hidden" id="studio-calendar-ids" value="" />
+      <button id="connect-google" type="button" class="ghost hidden">Connect Google</button>
+      <button id="disconnect-google" type="button" class="ghost hidden">Disconnect</button>
+    </header>
+    <div id="auth-modal" class="auth-modal hidden">
+      <div class="auth-panel">
+        <h2>Account</h2>
+        <label>
+          Email
+          <input id="auth-email" type="email" placeholder="you@company.com" />
+        </label>
+        <label>
+          Password
+          <input id="auth-password" type="password" placeholder="••••••••" />
+        </label>
+        <div class="form-actions">
+          <button id="auth-sign-in" type="button">Sign In</button>
+          <button id="auth-sign-up" type="button" class="ghost">Create Account</button>
+        </div>
+        <div class="form-actions">
+          <button id="auth-close" type="button" class="ghost">Close</button>
+        </div>
+        <p id="auth-status" class="status"></p>
+      </div>
+    </div>
+
+    <main class="app-shell">
+      <nav class="top-nav">
+        <button class="view-btn active" data-view="pairing">Pairing</button>
+        <button class="view-btn" data-view="songwriters">Songwriters</button>
+        <button class="view-btn" data-view="calendar">Calendar</button>
+      </nav>
+
+      <section id="pairing-view" class="view active">
+        <div class="card">
+          <form id="session-form">
+            <fieldset class="seeking-group session-seeking-group">
+              <legend>Seeking</legend>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="topliner" /> topliner</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="artist" /> artist</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="producer" /> producer</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="co-producer" /> co-producer</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="co-writer" /> co-writer</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="multi-instrumentalist" /> multi-instrumentalist</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="rapper" /> rapper</label>
+              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="spoken-word" /> spoken-word</label>
+              <div id="published-scope-options" class="published-scope-options hidden">
+                <label class="check-row published-only-toggle">
+                  <input type="checkbox" id="include-published" />
+                  INCLUDE PUBLISHED WRITER
+                </label>
+                <label class="check-row published-only-toggle">
+                  <input type="checkbox" id="published-only" />
+                  ONLY INCLUDE PUBLISHED WRITERS
+                </label>
+              </div>
+              <div id="published-slot-inline" class="published-slot-inline hidden">
+                <p class="published-slot-inline-title">Published roster slots</p>
+                <div class="role-count-grid">
+                  <label class="role-count-row" data-role="topliner">topliner
+                    <select name="published-role-min" data-role="topliner">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="artist">artist
+                    <select name="published-role-min" data-role="artist">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="producer">producer
+                    <select name="published-role-min" data-role="producer">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="co-producer">co-producer
+                    <select name="published-role-min" data-role="co-producer">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="co-writer">co-writer
+                    <select name="published-role-min" data-role="co-writer">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="multi-instrumentalist">multi-instrumentalist
+                    <select name="published-role-min" data-role="multi-instrumentalist">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="rapper">rapper
+                    <select name="published-role-min" data-role="rapper">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                  <label class="role-count-row" data-role="spoken-word">spoken-word
+                    <select name="published-role-min" data-role="spoken-word">
+                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </fieldset>
+
+            <label>
+              Brief
+              <input type="text" id="session-title" placeholder="genre, style, vibe" />
+            </label>
+
+            <label>
+              Location
+              <input type="text" id="session-location" placeholder="city, remote, or anywhere" />
+            </label>
+            <p id="session-location-status" class="status inline-status"></p>
+
+            <label>
+              Date
+              <select id="schedule-mode">
+                <option value="">select date(s)</option>
+                <option value="anytime">anytime</option>
+                <option value="specific">specific date</option>
+                <option value="range">range of dates</option>
+              </select>
+            </label>
+
+            <label id="specific-date-group" class="hidden">
+              Date
+              <input type="date" id="session-date-specific" />
+            </label>
+
+            <div id="range-date-group" class="hidden">
+              <label>
+                Start Date
+                <input type="date" id="session-date-start" />
+              </label>
+
+              <label>
+                End Date
+                <input type="date" id="session-date-end" />
+              </label>
+            </div>
+
+            <label class="check-row">
+              <input type="checkbox" id="allow-weekends" />
+              allow weekend options (special case)
+            </label>
+
+            <div class="form-actions">
+              <button type="submit">Search</button>
+              <button id="refresh-session-brief" type="button" class="ghost">Refresh</button>
+            </div>
+            <p id="session-status" class="status"></p>
+          </form>
+        </div>
+
+        <div id="pairing-results-card" class="card hidden">
+          <h2>Pairing Results</h2>
+          <div class="form-actions">
+            <button id="generate-report" type="button" class="ghost" disabled>Generate Report</button>
+            <button id="refresh-pairing" type="button" class="ghost">Refresh</button>
+          </div>
+          <div id="sessions-list" class="sessions-list"></div>
+          <button id="see-more-pairing-results" type="button" class="ghost hidden">See more</button>
+          <div id="report-panel" class="report-panel hidden">
+            <p class="hint">Pairing Report</p>
+            <pre id="report-output"></pre>
+            <a id="download-report" class="ghost link-button" href="#" download="pairing-report.txt">Download Report</a>
+          </div>
+        </div>
+
+      </section>
+
+      <section id="songwriters-view" class="view">
+        <div class="card">
+          <h2>Search</h2>
+          <input id="writer-search" type="text" placeholder="Search by name, location, role, tag, personal, manager, or contact preference" />
+          <p id="songwriter-status" class="status"></p>
+        </div>
+
+        <div class="card">
+          <button id="toggle-add-songwriter" type="button" class="ghost section-toggle">Add Songwriter</button>
+          <form id="songwriter-form" class="hidden">
+            <label>
+              Writer Name
+              <input type="text" id="writer-name" required placeholder="Avery Lane" />
+            </label>
+
+            <label>
+              Location
+              <input type="text" id="writer-location" required placeholder="Los Angeles or Remote" />
+            </label>
+
+            <label>
+              Personal Contact
+              <input type="text" id="writer-personal-contact" required placeholder="name@email.com or +1..." />
+            </label>
+
+            <label>
+              Manager Contact
+              <input type="text" id="writer-manager-contact" required placeholder="manager@email.com or +1..." />
+            </label>
+
+            <label>
+              Calendar Provider
+              <select id="writer-calendar-provider">
+                <option value="icloud">icloud</option>
+              </select>
+            </label>
+
+            <div id="writer-google-calendar-tools">
+              <div class="form-actions">
+                <button id="load-shared-calendars" type="button" class="ghost">Pick from Shared Calendars</button>
+              </div>
+              <label>
+                Shared Calendar
+                <select id="writer-shared-calendar-select" class="placeholder">
+                  <option value="">select a shared calendar</option>
+                </select>
+              </label>
+              <p id="writer-calendar-status" class="status"></p>
+            </div>
+
+            <label>
+              Preferred Outreach
+              <select id="writer-preferred-contact">
+                <option value="email">email</option>
+                <option value="text">text</option>
+              </select>
+            </label>
+
+            <label>
+              Tags (comma-separated)
+              <input type="text" id="writer-tags" required placeholder="topliner, dance pop, female vocal specialist, remote, weeknights" />
+            </label>
+
+            <fieldset class="seeking-group">
+              <legend>Roles</legend>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="topliner" /> topliner</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="artist" /> artist</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="producer" /> producer</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="co-producer" /> co-producer</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="co-writer" /> co-writer</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="multi-instrumentalist" /> multi-instrumentalist</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="rapper" /> rapper</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="spoken-word" /> spoken-word</label>
+              <label class="check-row"><input type="checkbox" name="writer-role" value="singer" /> singer</label>
+            </fieldset>
+
+            <label class="check-row">
+              <input type="checkbox" id="writer-published" />
+              published writer
+            </label>
+
+            <label>
+              Bio
+              <textarea id="writer-bio" required placeholder="Short songwriter bio, experience, notable cuts, style, and strengths."></textarea>
+            </label>
+
+            <label>
+              Notes (optional)
+              <input type="text" id="writer-notes" placeholder="Cuts in K-pop + EDM" />
+            </label>
+
+            <label>
+              Roster (optional)
+              <input type="text" id="writer-roster" placeholder="management or publisher roster" />
+            </label>
+
+            <label>
+              Calendar Name (optional)
+              <input type="text" id="writer-calendar-name" placeholder="Shared calendar display name" />
+            </label>
+
+            <label>
+              Calendar ID / iCloud ICS URL (optional)
+              <input type="text" id="writer-calendar-id" placeholder="https://.../published/..." />
+            </label>
+
+            <div class="form-actions">
+              <button id="save-songwriter" type="submit">Add Songwriter</button>
+              <button id="cancel-edit" type="button" class="ghost hidden">Cancel Edit</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <button id="toggle-bulk-import" type="button" class="ghost section-toggle">Bulk Import</button>
+          <div id="bulk-import-tools" class="inline-tools hidden">
+            <a class="ghost link-button" href="./songwriter_import_template.csv" download>Download CSV Template</a>
+            <input id="songwriter-csv" type="file" accept=".csv,text/csv" />
+            <button id="import-songwriters" type="button" class="ghost">Bulk Import</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <button id="toggle-all-songwriters" type="button" class="ghost">View All Songwriters</button>
+          <div id="songwriter-list" class="songwriter-list"></div>
+        </div>
+      </section>
+
+      <section id="calendar-view" class="view">
+        <div class="card">
+          <div class="calendar-split">
+            <div class="calendar-sidebar">
+              <h2>Published Writers</h2>
+              <div id="calendar-writer-list" class="calendar-writer-list"></div>
+            </div>
+
+            <div class="calendar-main">
+              <div class="card-head">
+                <h2 id="calendar-events-title">Calendar Events</h2>
+                <div class="card-head-actions">
+                  <button id="refresh-calendar-events" type="button" class="ghost mini-btn">Refresh</button>
+                  <div class="calendar-dropdown hidden">
+                    <button id="calendar-menu-toggle" type="button" class="ghost mini-btn">Calendar Settings</button>
+                    <div id="calendar-menu-panel" class="calendar-menu-panel hidden">
+                      <p class="hint">iCloud Calendar</p>
+                      <label>
+                        iCloud Proxy URL
+                        <input id="icloud-proxy-url" type="text" placeholder="http://127.0.0.1:8787/ics?url=" />
+                      </label>
+                      <label>
+                        Shared API URL
+                        <input id="shared-api-url" type="text" placeholder="http://192.168.1.10:5051" />
+                      </label>
+                      <label>
+                        Supabase URL
+                        <input id="supabase-url" type="text" value="https://pffedarmnkzqegharrox.supabase.co" placeholder="https://YOUR_PROJECT.supabase.co" />
+                      </label>
+                      <label>
+                        Supabase Anon Key
+                        <input id="supabase-anon-key" type="password" value="sb_publishable_QCWEsXl56XwKOR1Ot21Ogg_4HDNX5Ll" placeholder="ey..." />
+                      </label>
+                      <p id="calendar-status" class="status"></p>
+                      <p id="shared-sync-status" class="status"></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="calendar-search-tools">
+                <input id="calendar-keyword-search" type="text" placeholder="Search artist / collaborator keyword across published writers" />
+                <div class="form-actions compact-actions">
+                  <button id="run-calendar-keyword-search" type="button" class="ghost">Search</button>
+                  <button id="generate-calendar-keyword-report" type="button" class="ghost" disabled>Generate Report</button>
+                </div>
+              </div>
+              <p id="calendar-events-status" class="status"></p>
+              <div id="calendar-search-results" class="calendar-search-results hidden"></div>
+              <div id="calendar-events-list" class="calendar-events-list">
+                <p class="hint">Select a published writer to view events.</p>
+              </div>
+              <div id="calendar-report-panel" class="report-panel hidden">
+                <p class="hint">Calendar Keyword Report</p>
+                <pre id="calendar-report-output"></pre>
+                <a id="download-calendar-report" class="ghost link-button" href="#" download="calendar-keyword-report.txt">Download Report</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <template id="session-template">
+      <article class="session-item">
+        <div class="session-top">
+          <h3 class="session-title"></h3>
+          <span class="score-pill"></span>
+        </div>
+        <p class="session-meta"></p>
+        <p class="session-extra"></p>
+        <div class="candidate-list"></div>
+      </article>
+    </template>
+
+    <template id="candidate-template">
+      <div class="candidate-item">
+        <div class="candidate-top">
+          <p class="candidate-name"></p>
+          <span class="candidate-score"></span>
+        </div>
+        <p class="candidate-meta"></p>
+        <p class="candidate-availability"></p>
+        <p class="candidate-reason"></p>
+      </div>
+    </template>
+
+    <template id="songwriter-template">
+      <article class="songwriter-item">
+        <div class="songwriter-head">
+          <h3 class="songwriter-name"></h3>
+          <button type="button" class="ghost edit-writer">Edit</button>
+        </div>
+        <div class="songwriter-readonly">
+          <p class="songwriter-meta"></p>
+          <p class="songwriter-roles"></p>
+          <p class="songwriter-tags"></p>
+          <p class="songwriter-bio"></p>
+          <p class="songwriter-notes"></p>
+        </div>
+        <div class="inline-editor hidden">
+          <label>
+            Writer Name
+            <input type="text" class="inline-name" />
+          </label>
+          <label>
+            Location
+            <input type="text" class="inline-location" />
+          </label>
+          <label>
+            Personal Contact
+            <input type="text" class="inline-personal" />
+          </label>
+          <label>
+            Manager Contact
+            <input type="text" class="inline-manager" />
+          </label>
+          <label>
+            Calendar Provider
+            <select class="inline-calendar-provider">
+              <option value="icloud">icloud</option>
+            </select>
+          </label>
+          <label>
+            Preferred Outreach
+            <select class="inline-preferred-contact">
+              <option value="email">email</option>
+              <option value="text">text</option>
+            </select>
+          </label>
+          <label>
+            Tags (comma-separated)
+            <input type="text" class="inline-tags" />
+          </label>
+          <fieldset class="seeking-group inline-role-group">
+            <legend>Roles</legend>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="topliner" /> topliner</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="artist" /> artist</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="producer" /> producer</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="co-producer" /> co-producer</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="co-writer" /> co-writer</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="multi-instrumentalist" /> multi-instrumentalist</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="rapper" /> rapper</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="spoken-word" /> spoken-word</label>
+            <label class="check-row"><input type="checkbox" class="inline-role" value="singer" /> singer</label>
+          </fieldset>
+          <label class="check-row">
+            <input type="checkbox" class="inline-published" />
+            published writer
+          </label>
+          <label>
+            Bio
+            <textarea class="inline-bio"></textarea>
+          </label>
+          <label>
+            Notes (optional)
+            <input type="text" class="inline-notes" />
+          </label>
+          <label>
+            Roster (optional)
+            <input type="text" class="inline-roster" />
+          </label>
+          <label>
+            Calendar Name (optional)
+            <input type="text" class="inline-calendar-name" />
+          </label>
+          <label>
+            Calendar ID / iCloud ICS URL (optional)
+            <input type="text" class="inline-calendar-id" />
+          </label>
+          <div class="form-actions">
+            <button type="button" class="save-inline-writer">Save</button>
+            <button type="button" class="ghost cancel-inline-writer">Cancel</button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/ical.js/dist/ical.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
