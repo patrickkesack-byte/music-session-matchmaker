@@ -398,6 +398,12 @@ legend {
   gap: 0.35rem;
 }
 
+.calendar-month-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .calendar-proxy-tools {
   margin-bottom: 0.5rem;
 }
@@ -518,6 +524,69 @@ legend {
 
 .calendar-schedule-content {
   min-width: 0;
+}
+
+.calendar-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.calendar-month-weekday {
+  margin: 0;
+  padding: 0.4rem 0.35rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+
+.calendar-month-cell {
+  min-height: 72px;
+  border-top: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  padding: 0.28rem;
+}
+
+.calendar-month-cell.outside {
+  background: var(--bg);
+  opacity: 0.55;
+}
+
+.calendar-month-cell.today .calendar-month-day {
+  color: var(--accent);
+}
+
+.calendar-month-day {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.calendar-month-dots {
+  margin-top: 0.24rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.calendar-month-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  display: inline-block;
+}
+
+.calendar-month-more {
+  font-size: 0.62rem;
+  color: var(--muted);
 }
 
 .quoted {
@@ -977,5 +1046,15 @@ textarea {
   .calendar-schedule-item {
     grid-template-columns: 1fr;
     gap: 0.2rem;
+  }
+
+  .calendar-month-weekday {
+    font-size: 0.58rem;
+    padding: 0.3rem 0.2rem;
+  }
+
+  .calendar-month-cell {
+    min-height: 56px;
+    padding: 0.2rem;
   }
 }

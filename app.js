@@ -59,6 +59,10 @@ const calendarEventsTitle = document.getElementById("calendar-events-title");
 const refreshCalendarEventsButton = document.getElementById("refresh-calendar-events");
 const calendarViewListButton = document.getElementById("calendar-view-list");
 const calendarViewCalendarButton = document.getElementById("calendar-view-calendar");
+const calendarMonthNav = document.getElementById("calendar-month-nav");
+const calendarMonthPrevButton = document.getElementById("calendar-month-prev");
+const calendarMonthNextButton = document.getElementById("calendar-month-next");
+const calendarMonthTodayButton = document.getElementById("calendar-month-today");
 const calendarKeywordSearchInput = document.getElementById("calendar-keyword-search");
 const runCalendarKeywordSearchButton = document.getElementById("run-calendar-keyword-search");
 const generateCalendarKeywordReportButton = document.getElementById("generate-calendar-keyword-report");
@@ -184,6 +188,8 @@ let supabaseSyncInFlight = false;
 let lastSupabaseSyncMs = 0;
 let supabasePushTimeout = null;
 const ALL_CALENDAR_WRITERS_ID = "__all_published_writers__";
+const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+let calendarMonthCursor = startOfMonth(new Date());
 
 const STOP_WORDS = new Set([
   "the",
@@ -1884,6 +1890,22 @@ const setCalendarEventsViewMode = (mode) => {
     calendarViewCalendarButton.classList.toggle("active", normalized === "calendar");
     calendarViewCalendarButton.setAttribute("aria-selected", normalized === "calendar" ? "true" : "false");
   }
+  const writerSelected =
+    Boolean(selectedCalendarWriterId) && selectedCalendarWriterId !== ALL_CALENDAR_WRITERS_ID;
+  setCalendarViewControlsVisibility(writerSelected);
+};
+
+const setCalendarViewControlsVisibility = (isWriterSelected) => {
+  const showToggle = Boolean(isWriterSelected);
+  if (calendarViewListButton?.parentElement) {
+    calendarViewListButton.parentElement.classList.toggle("hidden", !showToggle);
+  }
+  if (calendarMonthNav) {
+    calendarMonthNav.classList.toggle(
+      "hidden",
+      !showToggle || calendarEventsViewMode !== "calendar"
+    );
+  }
 };
 
 const formatCalendarEventDateRange = (event) => {
@@ -1909,6 +1931,9 @@ const formatCalendarDayHeading = (date) =>
     year: "numeric",
   });
 
+const formatCalendarMonthHeading = (date) =>
+  date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
 const formatCalendarEventTimeRange = (event) => {
   if (!(event?.start instanceof Date) || Number.isNaN(event.start.getTime())) return "Unknown";
   if (event.allDay) return "All day";
@@ -1923,41 +1948,6 @@ const formatCalendarEventTimeRange = (event) => {
 };
 
 const renderWriterCalendarEventsListView = (events) => {
-  const now = Date.now();
-  const upcoming = events.filter((evt) => evt.start.getTime() >= now).slice(0, 30);
-  const recent = events
-    .filter((evt) => evt.start.getTime() < now)
-    .sort((a, b) => b.start - a.start)
-    .slice(0, 30);
-
-  const sections = [];
-  if (upcoming.length) {
-    sections.push("<div class='calendar-event-section'><p class='hint'>Upcoming</p>");
-    upcoming.forEach((evt) => {
-      sections.push(
-        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
-          evt
-        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
-      );
-    });
-    sections.push("</div>");
-  }
-  if (recent.length) {
-    sections.push("<div class='calendar-event-section'><p class='hint'>Recent</p>");
-    recent.forEach((evt) => {
-      sections.push(
-        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
-          evt
-        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
-      );
-    });
-    sections.push("</div>");
-  }
-
-  return sections.join("");
-};
-
-const renderWriterCalendarEventsCalendarView = (events) => {
   const sorted = [...events].sort((a, b) => a.start - b.start).slice(0, 180);
   if (!sorted.length) return "";
   const grouped = new Map();
@@ -1984,6 +1974,67 @@ const renderWriterCalendarEventsCalendarView = (events) => {
   });
 
   return sections.join("");
+};
+
+const eventOverlapsDay = (event, dayStart, dayEnd) => {
+  if (!(event?.start instanceof Date) || Number.isNaN(event.start.getTime())) return false;
+  const eventStart = event.start;
+  const eventEnd =
+    event.end instanceof Date && !Number.isNaN(event.end.getTime())
+      ? event.end
+      : new Date(event.start.getTime() + 60 * 60 * 1000);
+  return eventStart < dayEnd && eventEnd > dayStart;
+};
+
+const renderWriterCalendarEventsMonthView = (events) => {
+  const monthStart = startOfMonth(calendarMonthCursor);
+  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+  const gridEnd = new Date(gridStart);
+  gridEnd.setDate(gridStart.getDate() + 42);
+
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const parts = [];
+  parts.push(`<div class="calendar-month-grid">`);
+  weekDays.forEach((day) => {
+    parts.push(`<p class="calendar-month-weekday">${day}</p>`);
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 42; i += 1) {
+    const day = new Date(gridStart);
+    day.setDate(gridStart.getDate() + i);
+    const nextDay = new Date(day);
+    nextDay.setDate(day.getDate() + 1);
+
+    if (day >= gridEnd) break;
+
+    const inMonth = day >= monthStart && day < monthEnd;
+    const isToday = day.getTime() === today.getTime();
+    const dayEvents = (events || []).filter((evt) => eventOverlapsDay(evt, day, nextDay));
+    const dotCount = Math.min(dayEvents.length, 4);
+    const overflow = Math.max(0, dayEvents.length - dotCount);
+
+    parts.push(`<div class="calendar-month-cell${inMonth ? "" : " outside"}${isToday ? " today" : ""}">`);
+    parts.push(`<p class="calendar-month-day">${day.getDate()}</p>`);
+    if (dayEvents.length) {
+      parts.push(`<div class="calendar-month-dots" aria-label="${dayEvents.length} event(s)">`);
+      for (let d = 0; d < dotCount; d += 1) {
+        parts.push(`<span class="calendar-month-dot"></span>`);
+      }
+      if (overflow > 0) {
+        parts.push(`<span class="calendar-month-more">+${overflow}</span>`);
+      }
+      parts.push(`</div>`);
+    }
+    parts.push(`</div>`);
+  }
+
+  parts.push(`</div>`);
+  return parts.join("");
 };
 
 const getSharedCalendarId = () => {
@@ -2738,6 +2789,7 @@ const renderCalendarWriterList = () => {
     if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar Events";
     setCalendarEventsStatus("");
     selectedCalendarWriterId = null;
+    setCalendarViewControlsVisibility(false);
     return;
   }
 
@@ -2773,7 +2825,7 @@ const renderWriterCalendarEvents = (writer, events) => {
   if (!calendarEventsList) return;
   const html =
     calendarEventsViewMode === "calendar"
-      ? renderWriterCalendarEventsCalendarView(events)
+      ? renderWriterCalendarEventsMonthView(events)
       : renderWriterCalendarEventsListView(events);
 
   if (!html) {
@@ -2782,31 +2834,41 @@ const renderWriterCalendarEvents = (writer, events) => {
   }
 
   calendarEventsList.innerHTML = html;
-  if (calendarEventsTitle) calendarEventsTitle.textContent = `${writer.name} Calendar`;
+  if (calendarEventsTitle) {
+    calendarEventsTitle.textContent =
+      calendarEventsViewMode === "calendar"
+        ? `${writer.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
+        : `${writer.name} Calendar`;
+  }
 };
 
 const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
   if (!calendarEventsList) return;
   const writers = getPublishedCalendarWriters();
   if (selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID) {
+    setCalendarViewControlsVisibility(false);
     if (calendarEventsTitle) calendarEventsTitle.textContent = "All Published Calendars";
-    calendarEventsList.innerHTML =
-      calendarEventsViewMode === "calendar"
-        ? "<p class='hint'>Select an individual writer to use Calendar View.</p>"
-        : "";
+    calendarEventsList.innerHTML = "";
     setCalendarEventsStatus("");
     return;
   }
   const writer = writers.find((w) => w.id === selectedCalendarWriterId);
 
   if (!writer) {
+    setCalendarViewControlsVisibility(false);
     if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar Events";
     calendarEventsList.innerHTML = "<p class='hint'>Select a published writer to view events.</p>";
     setCalendarEventsStatus("");
     return;
   }
+  setCalendarViewControlsVisibility(true);
 
-  if (calendarEventsTitle) calendarEventsTitle.textContent = `${writer.name} Calendar`;
+  if (calendarEventsTitle) {
+    calendarEventsTitle.textContent =
+      calendarEventsViewMode === "calendar"
+        ? `${writer.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
+        : `${writer.name} Calendar`;
+  }
   if (!writer.calendarId) {
     calendarEventsList.innerHTML = "<p class='hint'>No public iCloud calendar URL on this writer profile.</p>";
     setCalendarEventsStatus("Add a public iCloud URL in the writer profile to view events.", true);
@@ -2863,7 +2925,9 @@ const renderCalendarKeywordSearchResults = () => {
         selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID
           ? "All Published Calendars"
           : selected
-            ? `${selected.name} Calendar`
+            ? calendarEventsViewMode === "calendar"
+              ? `${selected.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
+              : `${selected.name} Calendar`
             : "Calendar Events";
     }
     return;
@@ -4778,6 +4842,27 @@ if (calendarViewListButton) {
 if (calendarViewCalendarButton) {
   calendarViewCalendarButton.addEventListener("click", () => {
     setCalendarEventsViewMode("calendar");
+    loadSelectedWriterCalendarEvents();
+  });
+}
+
+if (calendarMonthPrevButton) {
+  calendarMonthPrevButton.addEventListener("click", () => {
+    calendarMonthCursor = new Date(calendarMonthCursor.getFullYear(), calendarMonthCursor.getMonth() - 1, 1);
+    loadSelectedWriterCalendarEvents();
+  });
+}
+
+if (calendarMonthTodayButton) {
+  calendarMonthTodayButton.addEventListener("click", () => {
+    calendarMonthCursor = startOfMonth(new Date());
+    loadSelectedWriterCalendarEvents();
+  });
+}
+
+if (calendarMonthNextButton) {
+  calendarMonthNextButton.addEventListener("click", () => {
+    calendarMonthCursor = new Date(calendarMonthCursor.getFullYear(), calendarMonthCursor.getMonth() + 1, 1);
     loadSelectedWriterCalendarEvents();
   });
 }
