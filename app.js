@@ -499,17 +499,22 @@ const setAuthModalOpen = (isOpen) => {
   authModal.classList.toggle("hidden", !isOpen);
 };
 
+const DEFAULT_SUPABASE_SETTINGS = {
+  url: String(supabaseUrlInput?.value || "").trim(),
+  anonKey: String(supabaseAnonKeyInput?.value || "").trim(),
+};
+
 const loadSupabaseSettings = () => {
   const raw = localStorage.getItem(STORAGE_KEYS.supabaseSettings);
-  if (!raw) return { url: "", anonKey: "" };
+  if (!raw) return { ...DEFAULT_SUPABASE_SETTINGS };
   try {
     const parsed = JSON.parse(raw);
     return {
-      url: String(parsed.url || "").trim(),
-      anonKey: String(parsed.anonKey || "").trim(),
+      url: String(parsed.url || DEFAULT_SUPABASE_SETTINGS.url).trim(),
+      anonKey: String(parsed.anonKey || DEFAULT_SUPABASE_SETTINGS.anonKey).trim(),
     };
   } catch (_error) {
-    return { url: "", anonKey: "" };
+    return { ...DEFAULT_SUPABASE_SETTINGS };
   }
 };
 
