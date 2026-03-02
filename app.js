@@ -57,6 +57,8 @@ const calendarEventsList = document.getElementById("calendar-events-list");
 const calendarEventsStatus = document.getElementById("calendar-events-status");
 const calendarEventsTitle = document.getElementById("calendar-events-title");
 const refreshCalendarEventsButton = document.getElementById("refresh-calendar-events");
+const calendarViewListButton = document.getElementById("calendar-view-list");
+const calendarViewCalendarButton = document.getElementById("calendar-view-calendar");
 const calendarKeywordSearchInput = document.getElementById("calendar-keyword-search");
 const runCalendarKeywordSearchButton = document.getElementById("run-calendar-keyword-search");
 const generateCalendarKeywordReportButton = document.getElementById("generate-calendar-keyword-report");
@@ -158,6 +160,7 @@ let isBulkImportOpen = false;
 let isAddBriefOpen = false;
 let selectedBriefForSessionId = null;
 let selectedCalendarWriterId = null;
+let calendarEventsViewMode = "list";
 const writerCalendarEventsCache = new Map();
 let lastCalendarKeywordSearch = "";
 let lastCalendarKeywordSearchResults = [];
@@ -1870,6 +1873,19 @@ const setCalendarEventsStatus = (message, isError = false) => {
   calendarEventsStatus.classList.toggle("error", isError);
 };
 
+const setCalendarEventsViewMode = (mode) => {
+  const normalized = mode === "calendar" ? "calendar" : "list";
+  calendarEventsViewMode = normalized;
+  if (calendarViewListButton) {
+    calendarViewListButton.classList.toggle("active", normalized === "list");
+    calendarViewListButton.setAttribute("aria-selected", normalized === "list" ? "true" : "false");
+  }
+  if (calendarViewCalendarButton) {
+    calendarViewCalendarButton.classList.toggle("active", normalized === "calendar");
+    calendarViewCalendarButton.setAttribute("aria-selected", normalized === "calendar" ? "true" : "false");
+  }
+};
+
 const formatCalendarEventDateRange = (event) => {
   if (!(event?.start instanceof Date) || Number.isNaN(event.start.getTime())) return "Unknown date";
   const sameDay =
@@ -1883,6 +1899,91 @@ const formatCalendarEventDateRange = (event) => {
     return `${event.start.toLocaleDateString()} • ${event.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}–${event.end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
   }
   return `${event.start.toLocaleString()} → ${event.end?.toLocaleString?.() || ""}`;
+};
+
+const formatCalendarDayHeading = (date) =>
+  date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+const formatCalendarEventTimeRange = (event) => {
+  if (!(event?.start instanceof Date) || Number.isNaN(event.start.getTime())) return "Unknown";
+  if (event.allDay) return "All day";
+  if (!(event.end instanceof Date) || Number.isNaN(event.end.getTime())) {
+    return event.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+  const sameDay = event.start.toDateString() === event.end.toDateString();
+  if (sameDay) {
+    return `${event.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} - ${event.end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+  }
+  return `${event.start.toLocaleString()} - ${event.end.toLocaleString()}`;
+};
+
+const renderWriterCalendarEventsListView = (events) => {
+  const now = Date.now();
+  const upcoming = events.filter((evt) => evt.start.getTime() >= now).slice(0, 30);
+  const recent = events
+    .filter((evt) => evt.start.getTime() < now)
+    .sort((a, b) => b.start - a.start)
+    .slice(0, 30);
+
+  const sections = [];
+  if (upcoming.length) {
+    sections.push("<div class='calendar-event-section'><p class='hint'>Upcoming</p>");
+    upcoming.forEach((evt) => {
+      sections.push(
+        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
+          evt
+        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
+      );
+    });
+    sections.push("</div>");
+  }
+  if (recent.length) {
+    sections.push("<div class='calendar-event-section'><p class='hint'>Recent</p>");
+    recent.forEach((evt) => {
+      sections.push(
+        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
+          evt
+        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
+      );
+    });
+    sections.push("</div>");
+  }
+
+  return sections.join("");
+};
+
+const renderWriterCalendarEventsCalendarView = (events) => {
+  const sorted = [...events].sort((a, b) => a.start - b.start).slice(0, 180);
+  if (!sorted.length) return "";
+  const grouped = new Map();
+  sorted.forEach((evt) => {
+    const key = evt.start.toISOString().slice(0, 10);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(evt);
+  });
+
+  const sections = [];
+  Array.from(grouped.entries()).forEach(([dayKey, dayEvents]) => {
+    const dayDate = new Date(`${dayKey}T00:00:00`);
+    sections.push(`<section class="calendar-day-group"><p class="calendar-day-title">${escapeHtml(formatCalendarDayHeading(dayDate))}</p>`);
+    dayEvents.forEach((evt) => {
+      sections.push(
+        `<article class="calendar-schedule-item"><p class="calendar-schedule-time">${escapeHtml(formatCalendarEventTimeRange(
+          evt
+        ))}</p><div class="calendar-schedule-content"><p class="calendar-event-title">${escapeHtml(
+          evt.summary || "Untitled"
+        )}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</div></article>`
+      );
+    });
+    sections.push("</section>");
+  });
+
+  return sections.join("");
 };
 
 const getSharedCalendarId = () => {
@@ -2670,43 +2771,17 @@ const renderCalendarWriterList = () => {
 
 const renderWriterCalendarEvents = (writer, events) => {
   if (!calendarEventsList) return;
-  const now = Date.now();
-  const upcoming = events.filter((evt) => evt.start.getTime() >= now).slice(0, 30);
-  const recent = events
-    .filter((evt) => evt.start.getTime() < now)
-    .sort((a, b) => b.start - a.start)
-    .slice(0, 30);
+  const html =
+    calendarEventsViewMode === "calendar"
+      ? renderWriterCalendarEventsCalendarView(events)
+      : renderWriterCalendarEventsListView(events);
 
-  const sections = [];
-  if (upcoming.length) {
-    sections.push("<div class='calendar-event-section'><p class='hint'>Upcoming</p>");
-    upcoming.forEach((evt) => {
-      sections.push(
-        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
-          evt
-        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
-      );
-    });
-    sections.push("</div>");
-  }
-  if (recent.length) {
-    sections.push("<div class='calendar-event-section'><p class='hint'>Recent</p>");
-    recent.forEach((evt) => {
-      sections.push(
-        `<article class="calendar-event-item"><p class="calendar-event-title">${escapeHtml(evt.summary || "Untitled")}</p><p class="calendar-event-date">${escapeHtml(formatCalendarEventDateRange(
-          evt
-        ))}</p>${evt.location ? `<p class="calendar-event-meta">Location: ${escapeHtml(evt.location)}</p>` : ""}</article>`
-      );
-    });
-    sections.push("</div>");
-  }
-
-  if (!sections.length) {
+  if (!html) {
     calendarEventsList.innerHTML = "<p class='hint'>No events found in the current calendar window.</p>";
     return;
   }
 
-  calendarEventsList.innerHTML = sections.join("");
+  calendarEventsList.innerHTML = html;
   if (calendarEventsTitle) calendarEventsTitle.textContent = `${writer.name} Calendar`;
 };
 
@@ -2715,7 +2790,10 @@ const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
   const writers = getPublishedCalendarWriters();
   if (selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID) {
     if (calendarEventsTitle) calendarEventsTitle.textContent = "All Published Calendars";
-    calendarEventsList.innerHTML = "";
+    calendarEventsList.innerHTML =
+      calendarEventsViewMode === "calendar"
+        ? "<p class='hint'>Select an individual writer to use Calendar View.</p>"
+        : "";
     setCalendarEventsStatus("");
     return;
   }
@@ -4690,6 +4768,20 @@ if (refreshCalendarEventsButton) {
   });
 }
 
+if (calendarViewListButton) {
+  calendarViewListButton.addEventListener("click", () => {
+    setCalendarEventsViewMode("list");
+    loadSelectedWriterCalendarEvents();
+  });
+}
+
+if (calendarViewCalendarButton) {
+  calendarViewCalendarButton.addEventListener("click", () => {
+    setCalendarEventsViewMode("calendar");
+    loadSelectedWriterCalendarEvents();
+  });
+}
+
 if (runCalendarKeywordSearchButton) {
   runCalendarKeywordSearchButton.addEventListener("click", async () => {
     await runCalendarKeywordSearch();
@@ -4761,6 +4853,7 @@ bindDateInputOpenOnClick(sessionDateEndInput);
 syncSessionSeekingPills();
 syncPublishedRosterSlotsUi();
 setCalendarMenuOpen(false);
+setCalendarEventsViewMode("list");
 setCalendarStatus("iCloud mode active.");
 setScheduleStatus("");
 setPairingQueueStatus("");

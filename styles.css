@@ -392,6 +392,12 @@ legend {
   margin-bottom: 0.5rem;
 }
 
+.calendar-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .calendar-proxy-tools {
   margin-bottom: 0.5rem;
 }
@@ -472,6 +478,46 @@ legend {
   margin: 0.22rem 0 0;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.calendar-day-group {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.calendar-day-title {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.calendar-schedule-item {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 0.55rem;
+  padding: 0.55rem 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
+.calendar-schedule-item:first-of-type {
+  border-top: 0;
+}
+
+.calendar-schedule-time {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.calendar-schedule-content {
+  min-width: 0;
 }
 
 .quoted {
@@ -926,5 +972,10 @@ textarea {
 
   .calendar-writer-list {
     max-height: none;
+  }
+
+  .calendar-schedule-item {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
   }
 }
