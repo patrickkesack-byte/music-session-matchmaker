@@ -2937,7 +2937,10 @@ const renderCalendarKeywordSearchResults = () => {
   if (!lastCalendarKeywordSearch.trim()) {
     calendarSearchResults.classList.add("hidden");
     calendarSearchResults.innerHTML = "";
-    if (generateCalendarKeywordReportButton) generateCalendarKeywordReportButton.disabled = true;
+    if (generateCalendarKeywordReportButton) {
+      generateCalendarKeywordReportButton.classList.add("hidden");
+      generateCalendarKeywordReportButton.disabled = true;
+    }
     const writers = getPublishedCalendarWriters();
     const selected = writers.find((w) => w.id === selectedCalendarWriterId);
     if (calendarEventsTitle) {
@@ -2955,9 +2958,12 @@ const renderCalendarKeywordSearchResults = () => {
 
   if (calendarEventsTitle) calendarEventsTitle.textContent = "All Published Calendars";
   calendarSearchResults.classList.remove("hidden");
+  if (generateCalendarKeywordReportButton) {
+    generateCalendarKeywordReportButton.classList.remove("hidden");
+    generateCalendarKeywordReportButton.disabled = false;
+  }
   if (!lastCalendarKeywordSearchResults.length) {
     calendarSearchResults.innerHTML = `<p class="hint">No matches found for "${escapeHtml(lastCalendarKeywordSearch)}".</p>`;
-    if (generateCalendarKeywordReportButton) generateCalendarKeywordReportButton.disabled = true;
     return;
   }
 
@@ -2988,7 +2994,6 @@ const renderCalendarKeywordSearchResults = () => {
   });
 
   calendarSearchResults.innerHTML = sections.join("");
-  if (generateCalendarKeywordReportButton) generateCalendarKeywordReportButton.disabled = false;
 };
 
 const buildCalendarKeywordReport = () => {
