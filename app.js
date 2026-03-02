@@ -2509,6 +2509,7 @@ const renderSongwriters = () => {
     const node = songwriterTemplate.content.cloneNode(true);
     const item = node.querySelector(".songwriter-item");
     const editButton = node.querySelector(".edit-writer");
+    const deleteButton = node.querySelector(".delete-writer");
     const isInlineEditing = inlineEditingWriterId === writer.id;
     const inlineEditor = node.querySelector(".inline-editor");
     const readOnly = node.querySelector(".songwriter-readonly");
@@ -2516,6 +2517,7 @@ const renderSongwriters = () => {
     item.dataset.writerId = writer.id;
     node.querySelector(".songwriter-name").textContent = writer.name;
     editButton.dataset.writerId = writer.id;
+    deleteButton.dataset.writerId = writer.id;
     editButton.textContent = isInlineEditing ? "Close" : "Edit";
     node.querySelector(".songwriter-meta").textContent =
       `Location: ${writer.location} | ${writer.published ? "Published" : "Unpublished"} | Roster: ${writer.roster || "n/a"} | Calendar: ${writer.calendarProvider || "icloud"}${writer.calendarName ? ` (${writer.calendarName})` : ""} | Preferred: ${writer.preferredContact} | Personal: ${writer.personalContact} | Manager: ${writer.managerContact}`;
@@ -4352,6 +4354,27 @@ if (briefList) {
 songwriterList.addEventListener("click", (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
+
+  if (target.classList.contains("delete-writer")) {
+    const writerId = target.dataset.writerId;
+    if (!writerId) return;
+
+    const writers = loadSongwriters();
+    const writer = writers.find((w) => w.id === writerId);
+    if (!writer) return;
+
+    const confirmed = window.confirm(`Delete ${writer.name}?`);
+    if (!confirmed) return;
+
+    const nextWriters = writers.filter((w) => w.id !== writerId);
+    saveSongwriters(nextWriters);
+    if (inlineEditingWriterId === writerId) inlineEditingWriterId = null;
+    songwriterStatus.textContent = `Deleted ${writer.name}.`;
+    renderSongwriters();
+    renderLatestSessionResult();
+    renderCalendarWriterList();
+    return;
+  }
 
   if (target.classList.contains("edit-writer")) {
     const writerId = target.dataset.writerId;

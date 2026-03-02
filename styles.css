@@ -717,6 +717,13 @@ button:hover {
   overflow-x: auto;
 }
 
+.songwriter-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
 .inline-editor {
   margin-top: 0.7rem;
   border-top: 1px solid var(--line);
@@ -733,6 +740,16 @@ button:hover {
 .edit-writer {
   width: auto;
   min-width: 64px;
+  padding: 0.34rem 0.5rem;
+  margin-top: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  flex: 0 0 auto;
+}
+
+.delete-writer {
+  width: auto;
+  min-width: 72px;
   padding: 0.34rem 0.5rem;
   margin-top: 0;
   font-size: 0.68rem;
