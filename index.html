@@ -221,41 +221,8 @@
             </label>
 
             <label>
-              Personal Contact
-              <input type="text" id="writer-personal-contact" required placeholder="name@email.com or +1..." />
-            </label>
-
-            <label>
-              Manager Contact
-              <input type="text" id="writer-manager-contact" required placeholder="manager@email.com or +1..." />
-            </label>
-
-            <label>
-              Calendar Provider
-              <select id="writer-calendar-provider">
-                <option value="icloud">icloud</option>
-              </select>
-            </label>
-
-            <div id="writer-google-calendar-tools">
-              <div class="form-actions">
-                <button id="load-shared-calendars" type="button" class="ghost">Pick from Shared Calendars</button>
-              </div>
-              <label>
-                Shared Calendar
-                <select id="writer-shared-calendar-select" class="placeholder">
-                  <option value="">select a shared calendar</option>
-                </select>
-              </label>
-              <p id="writer-calendar-status" class="status"></p>
-            </div>
-
-            <label>
-              Preferred Outreach
-              <select id="writer-preferred-contact">
-                <option value="email">email</option>
-                <option value="text">text</option>
-              </select>
+              Contact
+              <input type="text" id="writer-contact" required placeholder="name@email.com or +1..." />
             </label>
 
             <label>
@@ -296,15 +263,17 @@
               <input type="text" id="writer-roster" placeholder="management or publisher roster" />
             </label>
 
-            <label>
-              Calendar Name (optional)
-              <input type="text" id="writer-calendar-name" placeholder="Shared calendar display name" />
-            </label>
+            <div id="writer-calendar-fields" class="hidden">
+              <label>
+                Calendar Name (optional)
+                <input type="text" id="writer-calendar-name" placeholder="Shared calendar display name" />
+              </label>
 
-            <label>
-              Calendar ID / iCloud ICS URL (optional)
-              <input type="text" id="writer-calendar-id" placeholder="https://.../published/..." />
-            </label>
+              <label>
+                Calendar ID / iCloud ICS URL (optional)
+                <input type="text" id="writer-calendar-id" placeholder="https://.../published/..." />
+              </label>
+            </div>
 
             <div class="form-actions">
               <button id="save-songwriter" type="submit">Add Songwriter</button>
@@ -373,7 +342,7 @@
                 </div>
               </div>
               <div class="calendar-search-tools">
-                <input id="calendar-keyword-search" type="text" placeholder="Search artist / collaborator keyword across published writers" />
+                <input id="calendar-keyword-search" type="text" placeholder="search collaborators for all published songwriters" />
                 <div class="form-actions compact-actions">
                   <button id="run-calendar-keyword-search" type="button" class="ghost">Search</button>
                   <button id="generate-calendar-keyword-report" type="button" class="ghost hidden" disabled>Generate Report</button>

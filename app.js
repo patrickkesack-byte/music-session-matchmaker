@@ -4,6 +4,7 @@ const STORAGE_KEYS = {
   googleSettings: "sessionSync.googleSettings",
   sharedSettings: "sessionSync.sharedSettings",
   supabaseSettings: "sessionSync.supabaseSettings",
+  authLastActivityMs: "sessionSync.authLastActivityMs",
   scheduleRequests: "sessionSync.scheduleRequests",
   briefs: "sessionSync.briefs",
 };
@@ -20,6 +21,8 @@ const PAIRING_STATUS = {
 const PAIRING_RESULTS_PAGE_SIZE = 10;
 const ORG_ALLOWED_EMAIL_DOMAIN = "insomniac.com";
 const SHARED_OWNER_ID = "00000000-0000-0000-0000-000000000001";
+const AUTO_LOGOUT_INACTIVITY_MS = 12 * 60 * 60 * 1000;
+const ACTIVITY_PERSIST_MIN_MS = 60 * 1000;
 
 const songwriterForm = document.getElementById("songwriter-form");
 const sessionForm = document.getElementById("session-form");
@@ -126,6 +129,9 @@ const calendarMenuToggleButton = document.getElementById("calendar-menu-toggle")
 const calendarMenuPanel = document.getElementById("calendar-menu-panel");
 const calendarDropdown = document.querySelector(".calendar-dropdown");
 const writerCalendarProviderInput = document.getElementById("writer-calendar-provider");
+const writerContactInput = document.getElementById("writer-contact");
+const writerPublishedInput = document.getElementById("writer-published");
+const writerCalendarFields = document.getElementById("writer-calendar-fields");
 const writerCalendarIdInput = document.getElementById("writer-calendar-id");
 const writerCalendarNameInput = document.getElementById("writer-calendar-name");
 const writerGoogleCalendarTools = document.getElementById("writer-google-calendar-tools");
@@ -188,6 +194,9 @@ let supabasePollIntervalId = null;
 let supabaseSyncInFlight = false;
 let lastSupabaseSyncMs = 0;
 let supabasePushTimeout = null;
+let autoLogoutTimeoutId = null;
+let lastAuthActivityPersistMs = 0;
+let authSignedOutReason = "";
 const ALL_CALENDAR_WRITERS_ID = "__all_published_writers__";
 const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 let calendarMonthCursor = startOfMonth(new Date());
@@ -508,6 +517,66 @@ const setAuthStatus = (message, isError = false) => {
   authStatus.classList.toggle("error", isError);
 };
 
+const clearAutoLogoutTimer = () => {
+  if (!autoLogoutTimeoutId) return;
+  clearTimeout(autoLogoutTimeoutId);
+  autoLogoutTimeoutId = null;
+};
+
+const getLastAuthActivityMs = () => {
+  const raw = Number(localStorage.getItem(STORAGE_KEYS.authLastActivityMs));
+  return Number.isFinite(raw) ? raw : 0;
+};
+
+const persistAuthActivity = (force = false) => {
+  if (!supabaseUser) return;
+  const now = Date.now();
+  if (!force && now - lastAuthActivityPersistMs < ACTIVITY_PERSIST_MIN_MS) return;
+  lastAuthActivityPersistMs = now;
+  localStorage.setItem(STORAGE_KEYS.authLastActivityMs, String(now));
+};
+
+const clearAuthActivity = () => {
+  lastAuthActivityPersistMs = 0;
+  localStorage.removeItem(STORAGE_KEYS.authLastActivityMs);
+};
+
+const signOutForInactivity = async () => {
+  if (!supabaseClient || !supabaseUser) return;
+  authSignedOutReason = "Signed out after 12 hours of inactivity.";
+  clearAutoLogoutTimer();
+  clearAuthActivity();
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (_error) {
+    setAuthStatus("Auto logout failed. Please sign out and in again.", true);
+  }
+};
+
+const scheduleAutoLogoutCheck = () => {
+  clearAutoLogoutTimer();
+  if (!supabaseUser) return;
+  const lastActivity = getLastAuthActivityMs();
+  const now = Date.now();
+  if (!lastActivity) {
+    persistAuthActivity(true);
+    autoLogoutTimeoutId = setTimeout(signOutForInactivity, AUTO_LOGOUT_INACTIVITY_MS);
+    return;
+  }
+  const elapsed = now - lastActivity;
+  if (elapsed >= AUTO_LOGOUT_INACTIVITY_MS) {
+    signOutForInactivity();
+    return;
+  }
+  autoLogoutTimeoutId = setTimeout(signOutForInactivity, AUTO_LOGOUT_INACTIVITY_MS - elapsed);
+};
+
+const registerAuthActivity = (force = false) => {
+  if (!supabaseUser) return;
+  persistAuthActivity(force);
+  scheduleAutoLogoutCheck();
+};
+
 const setAuthModalOpen = (isOpen) => {
   if (!authModal) return;
   authModal.classList.toggle("hidden", !isOpen);
@@ -567,8 +636,9 @@ const setAuthUi = () => {
   }
   setAuthModalOpen(!loggedIn);
   if (!loggedIn) {
-    setAuthStatus("Sign in required.", true);
+    setAuthStatus(authSignedOutReason || "Sign in required.", true);
   } else {
+    authSignedOutReason = "";
     setAuthStatus("");
   }
 };
@@ -638,11 +708,11 @@ const setCalendarMenuOpen = (isOpen) => {
 };
 
 const setWriterCalendarProviderUi = () => {
-  const provider = writerCalendarProviderInput?.value || "icloud";
-  if (writerGoogleCalendarTools) {
-    writerGoogleCalendarTools.classList.toggle("hidden", provider !== "google");
+  const isPublished = Boolean(writerPublishedInput?.checked);
+  if (writerCalendarFields) {
+    writerCalendarFields.classList.toggle("hidden", !isPublished);
   }
-  if (provider !== "google") {
+  if (!isPublished) {
     setWriterCalendarStatus("");
   }
 };
@@ -1144,6 +1214,8 @@ const initSupabaseClient = async () => {
   if (!settings.url || !settings.anonKey || !window.supabase?.createClient) {
     supabaseClient = null;
     supabaseUser = null;
+    clearAutoLogoutTimer();
+    clearAuthActivity();
     setAuthUi();
     stopSupabasePolling();
     startRemoteSongwriterSync();
@@ -1156,7 +1228,15 @@ const initSupabaseClient = async () => {
     if (supabaseUser && !isOrgSupabaseUser(supabaseUser)) {
       await supabaseClient.auth.signOut();
       supabaseUser = null;
+      clearAutoLogoutTimer();
+      clearAuthActivity();
       setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
+    }
+    if (supabaseUser) {
+      registerAuthActivity(true);
+    } else {
+      clearAutoLogoutTimer();
+      clearAuthActivity();
     }
     setAuthUi();
     if (supabaseUser) {
@@ -1172,6 +1252,12 @@ const initSupabaseClient = async () => {
         supabaseClient.auth.signOut();
         supabaseUser = null;
       }
+      if (supabaseUser) {
+        registerAuthActivity(true);
+      } else {
+        clearAutoLogoutTimer();
+        clearAuthActivity();
+      }
       setAuthUi();
       if (supabaseUser) {
         stopSupabasePolling();
@@ -1184,6 +1270,7 @@ const initSupabaseClient = async () => {
   } catch (error) {
     supabaseClient = null;
     supabaseUser = null;
+    clearAutoLogoutTimer();
     setAuthUi();
     setSharedSyncStatus(error.message || "Supabase init failed.", true);
   }
@@ -2321,8 +2408,6 @@ const resetSongwriterForm = () => {
   songwriterForm.reset();
   editingSongwriterId = null;
   setSongwriterFormMode(false);
-  document.getElementById("writer-preferred-contact").value = "email";
-  document.getElementById("writer-calendar-provider").value = "icloud";
   setWriterRoleInputs([]);
   if (writerSharedCalendarSelect) {
     writerSharedCalendarSelect.value = "";
@@ -2344,13 +2429,14 @@ const resetBriefForm = () => {
 const populateSongwriterForm = (writer) => {
   document.getElementById("writer-name").value = writer.name || "";
   document.getElementById("writer-location").value = writer.location || "";
-  document.getElementById("writer-personal-contact").value = writer.personalContact || "";
-  document.getElementById("writer-manager-contact").value = writer.managerContact || "";
-  document.getElementById("writer-preferred-contact").value = writer.preferredContact || "email";
-  document.getElementById("writer-calendar-provider").value = writer.calendarProvider || "icloud";
+  if (writerContactInput) {
+    writerContactInput.value = writer.personalContact || writer.managerContact || "";
+  }
   document.getElementById("writer-tags").value = (writer.tags || []).join(", ");
   setWriterRoleInputs(writer.roles || []);
-  document.getElementById("writer-published").checked = Boolean(writer.published);
+  if (writerPublishedInput) {
+    writerPublishedInput.checked = Boolean(writer.published);
+  }
   document.getElementById("writer-bio").value = writer.bio || "";
   document.getElementById("writer-notes").value = writer.notes || "";
   document.getElementById("writer-roster").value = writer.roster || "";
@@ -2796,6 +2882,17 @@ const getPublishedCalendarWriters = () =>
     .filter((writer) => writer.published)
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
+const setCalendarKeywordPlaceholder = () => {
+  if (!calendarKeywordSearchInput) return;
+  const writers = getPublishedCalendarWriters();
+  const selected = writers.find((w) => w.id === selectedCalendarWriterId);
+  const scopeText =
+    selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID || !selected
+      ? "all published songwriters"
+      : selected.name || "selected songwriter";
+  calendarKeywordSearchInput.placeholder = `search collaborators for ${scopeText}`;
+};
+
 const renderCalendarWriterList = () => {
   if (!calendarWriterList) return;
   const writers = getPublishedCalendarWriters();
@@ -2807,6 +2904,7 @@ const renderCalendarWriterList = () => {
       calendarEventsList.innerHTML = "<p class='hint'>Add published writers to use the calendar view.</p>";
     }
     if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar Events";
+    setCalendarKeywordPlaceholder();
     setCalendarEventsStatus("");
     selectedCalendarWriterId = null;
     setCalendarViewControlsVisibility(false);
@@ -2839,6 +2937,7 @@ const renderCalendarWriterList = () => {
     btn.innerHTML = `<span class="calendar-writer-btn-name">${escapeHtml(writer.name || "Unnamed")}</span><span class="calendar-writer-btn-meta">${escapeHtml(writer.roster || "roster n/a")}${hasCalendar ? "" : " • no calendar url"}</span>`;
     calendarWriterList.append(btn);
   });
+  setCalendarKeywordPlaceholder();
 };
 
 const renderWriterCalendarEvents = (writer, events) => {
@@ -2865,6 +2964,7 @@ const renderWriterCalendarEvents = (writer, events) => {
 const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
   if (!calendarEventsList) return;
   const writers = getPublishedCalendarWriters();
+  setCalendarKeywordPlaceholder();
   if (selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID) {
     setCalendarViewControlsVisibility(false);
     if (calendarEventsTitle) calendarEventsTitle.textContent = "All Published Calendars";
@@ -4005,15 +4105,20 @@ if (briefForm) {
 songwriterForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
+  const unifiedContact = String(writerContactInput?.value || "").trim();
+  const isPublishedWriter = Boolean(writerPublishedInput?.checked);
+  const calendarName = isPublishedWriter ? document.getElementById("writer-calendar-name").value.trim() : "";
+  const calendarId = isPublishedWriter ? document.getElementById("writer-calendar-id").value.trim() : "";
+
   const songwriter = {
     id: editingSongwriterId || crypto.randomUUID(),
     name: document.getElementById("writer-name").value.trim(),
     location: document.getElementById("writer-location").value.trim().toLowerCase(),
-    personalContact: document.getElementById("writer-personal-contact").value.trim(),
-    managerContact: document.getElementById("writer-manager-contact").value.trim(),
-    preferredContact: document.getElementById("writer-preferred-contact").value,
-    calendarProvider: document.getElementById("writer-calendar-provider").value,
-    published: document.getElementById("writer-published").checked,
+    personalContact: unifiedContact,
+    managerContact: unifiedContact,
+    preferredContact: "email",
+    calendarProvider: "icloud",
+    published: isPublishedWriter,
     roles: getWriterRolesFromInputs(),
     tags: ensureLocationTag(
       normalizeList(document.getElementById("writer-tags").value),
@@ -4022,8 +4127,8 @@ songwriterForm.addEventListener("submit", (event) => {
     bio: document.getElementById("writer-bio").value.trim(),
     notes: document.getElementById("writer-notes").value.trim(),
     roster: document.getElementById("writer-roster").value.trim(),
-    calendarName: document.getElementById("writer-calendar-name").value.trim(),
-    calendarId: document.getElementById("writer-calendar-id").value.trim(),
+    calendarName,
+    calendarId,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -4392,9 +4497,11 @@ if (authSignInButton) {
       setAuthStatus(error.message || "Sign in failed.", true);
       return;
     }
+    authSignedOutReason = "";
     setAuthModalOpen(false);
     setAuthStatus("");
     setSharedSyncStatus("Supabase sync active.");
+    registerAuthActivity(true);
     await pullSongwritersFromSupabase();
   });
 }
@@ -4423,6 +4530,9 @@ if (authSignUpButton) {
 if (authLogoutButton) {
   authLogoutButton.addEventListener("click", async () => {
     if (!supabaseClient) return;
+    authSignedOutReason = "";
+    clearAutoLogoutTimer();
+    clearAuthActivity();
     await supabaseClient.auth.signOut();
     setSharedSyncStatus("Signed out.");
   });
@@ -4480,6 +4590,17 @@ if (autoAssignBriefsButton) {
 
 if (writerCalendarProviderInput) {
   writerCalendarProviderInput.addEventListener("change", () => {
+    setWriterCalendarProviderUi();
+  });
+}
+
+if (writerPublishedInput) {
+  writerPublishedInput.addEventListener("change", () => {
+    const isPublished = Boolean(writerPublishedInput.checked);
+    if (!isPublished) {
+      if (writerCalendarNameInput) writerCalendarNameInput.value = "";
+      if (writerCalendarIdInput) writerCalendarIdInput.value = "";
+    }
     setWriterCalendarProviderUi();
   });
 }
@@ -4924,6 +5045,24 @@ if (generateCalendarKeywordReportButton) {
 
 viewButtons.forEach((btn) => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
+});
+
+["pointerdown", "keydown", "scroll", "touchstart", "mousemove"].forEach((eventName) => {
+  document.addEventListener(eventName, () => {
+    registerAuthActivity(false);
+  }, { passive: true });
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    registerAuthActivity(false);
+  }
+});
+
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEYS.authLastActivityMs) return;
+  if (!supabaseUser) return;
+  scheduleAutoLogoutCheck();
 });
 
 if (calendarMenuToggleButton && calendarMenuPanel) {
