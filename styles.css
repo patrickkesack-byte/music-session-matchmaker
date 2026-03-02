@@ -386,6 +386,7 @@ legend {
 .calendar-events-list {
   display: grid;
   gap: 0.8rem;
+  font-family: var(--font-ui);
 }
 
 .calendar-search-tools {
@@ -477,6 +478,15 @@ legend {
   gap: 0.45rem;
 }
 
+.calendar-event-section > .hint {
+  margin: 0 0 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
 .calendar-event-item {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -485,15 +495,17 @@ legend {
 
 .calendar-event-title {
   margin: 0;
+  font-size: 0.93rem;
   font-weight: 700;
   color: var(--ink);
 }
 
 .calendar-event-date,
 .calendar-event-meta {
-  margin: 0.22rem 0 0;
+  margin: 0.2rem 0 0;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .calendar-day-group {
