@@ -2858,7 +2858,7 @@ const renderWriterCalendarEvents = (writer, events) => {
     calendarEventsTitle.textContent =
       calendarEventsViewMode === "calendar"
         ? `${writer.name}`
-        : `${writer.name} Calendar`;
+        : `${writer.name}`;
   }
 };
 
@@ -2887,7 +2887,7 @@ const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
     calendarEventsTitle.textContent =
       calendarEventsViewMode === "calendar"
         ? `${writer.name}`
-        : `${writer.name} Calendar`;
+        : `${writer.name}`;
   }
   if (!writer.calendarId) {
     calendarEventsList.innerHTML = "<p class='hint'>No public iCloud calendar URL on this writer profile.</p>";
@@ -2950,7 +2950,7 @@ const renderCalendarKeywordSearchResults = () => {
           : selected
             ? calendarEventsViewMode === "calendar"
               ? `${selected.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
-              : `${selected.name} Calendar`
+              : `${selected.name}`
             : "Calendar Events";
     }
     return;
