@@ -80,6 +80,7 @@ const cancelEditButton = document.getElementById("cancel-edit");
 
 const songwriterCsvInput = document.getElementById("songwriter-csv");
 const importSongwritersButton = document.getElementById("import-songwriters");
+const exportSongwritersButton = document.getElementById("export-songwriters");
 
 const generateReportButton = document.getElementById("generate-report");
 const refreshPairingButton = document.getElementById("refresh-pairing");
@@ -2159,6 +2160,55 @@ const parseCsvLine = (line) => {
   return cells;
 };
 
+const toCsvCell = (value) => {
+  const text = String(value ?? "");
+  const escaped = text.replace(/"/g, '""');
+  return `"${escaped}"`;
+};
+
+const buildSongwriterExportCsv = (writers) => {
+  const headers = [
+    "name",
+    "location",
+    "personal_contact",
+    "manager_contact",
+    "tags",
+    "bio",
+    "notes",
+    "roster",
+    "preferred_contact",
+    "calendar_provider",
+    "calendar_name",
+    "roles",
+    "published",
+    "calendar_id",
+  ];
+
+  const lines = [headers.join(",")];
+
+  (writers || []).forEach((writer) => {
+    const row = [
+      writer.name || "",
+      writer.location || "",
+      writer.personalContact || "",
+      writer.managerContact || "",
+      Array.isArray(writer.tags) ? writer.tags.join(", ") : "",
+      writer.bio || "",
+      writer.notes || "",
+      writer.roster || "",
+      writer.preferredContact || "email",
+      writer.calendarProvider || "icloud",
+      writer.calendarName || "",
+      Array.isArray(writer.roles) ? writer.roles.join(", ") : "",
+      writer.published ? "true" : "false",
+      writer.calendarId || "",
+    ];
+    lines.push(row.map(toCsvCell).join(","));
+  });
+
+  return `${lines.join("\n")}\n`;
+};
+
 const parseSongwriterCsv = (content) => {
   const lines = content
     .split(/\r?\n/)
@@ -3941,6 +3991,30 @@ importSongwritersButton.addEventListener("click", async () => {
   renderSongwriters();
   renderLatestSessionResult();
 });
+
+if (exportSongwritersButton) {
+  exportSongwritersButton.addEventListener("click", () => {
+    const songwriters = loadSongwriters();
+    if (!songwriters.length) {
+      songwriterStatus.textContent = "No songwriters to export.";
+      return;
+    }
+
+    const csv = buildSongwriterExportCsv(songwriters);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `songwriters_export_${stamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    songwriterStatus.textContent = `Exported ${songwriters.length} songwriter(s).`;
+  });
+}
 
 generateReportButton.addEventListener("click", () => {
   generateLatestPairingReport();
