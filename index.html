@@ -170,11 +170,6 @@
               </label>
             </div>
 
-            <label class="check-row">
-              <input type="checkbox" id="allow-weekends" />
-              allow weekend options (special case)
-            </label>
-
             <div class="form-actions">
               <button type="submit">Search</button>
               <button id="refresh-session-brief" type="button" class="ghost">Refresh</button>
@@ -286,8 +281,12 @@
           <button id="toggle-bulk-import" type="button" class="ghost section-toggle">Bulk Import/Export</button>
           <div id="bulk-import-tools" class="inline-tools hidden">
             <a class="ghost link-button" href="./songwriter_import_template.csv" download>Download CSV Template</a>
+            <div class="csv-picker">
+              <button id="choose-songwriter-csv" type="button" class="ghost">Choose File</button>
+              <span id="songwriter-csv-name" class="hint hidden"></span>
+            </div>
+            <input id="songwriter-csv" type="file" accept=".csv,text/csv" class="hidden-file-input" />
             <button id="export-songwriters" type="button" class="ghost">Bulk Export</button>
-            <input id="songwriter-csv" type="file" accept=".csv,text/csv" />
             <button id="import-songwriters" type="button" class="ghost">Bulk Import</button>
           </div>
         </div>

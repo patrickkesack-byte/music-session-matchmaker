@@ -91,6 +91,8 @@ const saveSongwriterButton = document.getElementById("save-songwriter");
 const cancelEditButton = document.getElementById("cancel-edit");
 
 const songwriterCsvInput = document.getElementById("songwriter-csv");
+const chooseSongwriterCsvButton = document.getElementById("choose-songwriter-csv");
+const songwriterCsvName = document.getElementById("songwriter-csv-name");
 const importSongwritersButton = document.getElementById("import-songwriters");
 const exportSongwritersButton = document.getElementById("export-songwriters");
 
@@ -105,7 +107,6 @@ const rangeDateGroup = document.getElementById("range-date-group");
 const sessionDateSpecificInput = document.getElementById("session-date-specific");
 const sessionDateStartInput = document.getElementById("session-date-start");
 const sessionDateEndInput = document.getElementById("session-date-end");
-const allowWeekendsInput = document.getElementById("allow-weekends");
 const includePublishedInput = document.getElementById("include-published");
 const publishedOnlyInput = document.getElementById("published-only");
 const publishedScopeOptions = document.getElementById("published-scope-options");
@@ -4168,7 +4169,6 @@ sessionForm.addEventListener("submit", async (event) => {
   const specificDate = sessionDateSpecificInput.value;
   const startDate = sessionDateStartInput.value;
   const endDate = sessionDateEndInput.value;
-  const allowWeekends = allowWeekendsInput.checked;
   const includePublished = Boolean(includePublishedInput?.checked);
   const publishedOnly = Boolean(publishedOnlyInput?.checked);
   const publishedRoleMinimums = getPublishedRoleMinimums();
@@ -4209,13 +4209,6 @@ sessionForm.addEventListener("submit", async (event) => {
     sessionStatus.textContent = "Pick a specific date.";
     return;
   }
-  if (scheduleMode === "specific" && specificDate && !allowWeekends) {
-    const picked = new Date(`${specificDate}T00:00:00`);
-    if (picked.getDay() === 0 || picked.getDay() === 6) {
-      sessionStatus.textContent = "Weekend sessions are disabled unless special case is enabled.";
-      return;
-    }
-  }
   if (scheduleMode === "range" && (!startDate || !endDate)) {
     sessionStatus.textContent = "Pick start and end dates.";
     return;
@@ -4244,7 +4237,7 @@ sessionForm.addEventListener("submit", async (event) => {
       specificDate: scheduleMode === "specific" ? specificDate : "",
       startDate: scheduleMode === "specific" ? specificDate : startDate,
       endDate: scheduleMode === "specific" ? specificDate : endDate,
-      allowWeekends,
+      allowWeekends: false,
     },
     status: PAIRING_STATUS.pending,
     approvalNotes: "",
@@ -4287,7 +4280,7 @@ sessionForm.addEventListener("submit", async (event) => {
 importSongwritersButton.addEventListener("click", async () => {
   const file = songwriterCsvInput.files?.[0];
   if (!file) {
-    songwriterStatus.textContent = "Choose a CSV file first.";
+    songwriterStatus.textContent = "no file chosen";
     return;
   }
 
@@ -4317,11 +4310,35 @@ importSongwritersButton.addEventListener("click", async () => {
 
   saveSongwriters(existing);
   songwriterCsvInput.value = "";
+  if (songwriterCsvName) {
+    songwriterCsvName.textContent = "";
+    songwriterCsvName.classList.add("hidden");
+  }
   songwriterStatus.textContent = `Imported ${result.imported.length - duplicates} songwriter(s). Skipped ${result.skipped + duplicates}.`;
 
   renderSongwriters();
   renderLatestSessionResult();
 });
+
+if (chooseSongwriterCsvButton && songwriterCsvInput) {
+  chooseSongwriterCsvButton.addEventListener("click", () => {
+    songwriterCsvInput.click();
+  });
+}
+
+if (songwriterCsvInput) {
+  songwriterCsvInput.addEventListener("change", () => {
+    const fileName = songwriterCsvInput.files?.[0]?.name || "";
+    if (!songwriterCsvName) return;
+    if (!fileName) {
+      songwriterCsvName.textContent = "";
+      songwriterCsvName.classList.add("hidden");
+      return;
+    }
+    songwriterCsvName.textContent = fileName;
+    songwriterCsvName.classList.remove("hidden");
+  });
+}
 
 if (exportSongwritersButton) {
   exportSongwritersButton.addEventListener("click", () => {
