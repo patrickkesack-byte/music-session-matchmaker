@@ -249,6 +249,28 @@ legend {
   margin-top: 0.06rem;
 }
 
+.topliner-options {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  padding: 0.5rem 0.55rem;
+  margin-top: 0.05rem;
+}
+
+.topliner-options-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.topliner-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.26rem 0.8rem;
+}
+
 .published-slot-inline {
   grid-column: 1 / -1;
   border-top: 1px solid var(--line);

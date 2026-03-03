@@ -112,6 +112,8 @@ const publishedOnlyInput = document.getElementById("published-only");
 const publishedScopeOptions = document.getElementById("published-scope-options");
 const publishedSlotInline = document.getElementById("published-slot-inline");
 const seekingInputs = Array.from(document.querySelectorAll('input[name="session-seeking"]'));
+const toplinerOptionsContainer = document.getElementById("topliner-options");
+const toplinerOptionInputs = Array.from(document.querySelectorAll('input[name="topliner-option"]'));
 const publishedRoleMinInputs = Array.from(document.querySelectorAll('select[name="published-role-min"]'));
 const briefSeekingInputs = Array.from(document.querySelectorAll('input[name="brief-seeking"]'));
 const writerRoleInputs = Array.from(document.querySelectorAll('input[name="writer-role"]'));
@@ -320,9 +322,27 @@ const SEEKING_OPTIONS = [
   "singer",
 ];
 
+const TOPLINER_SUBFILTER_OPTIONS = [
+  "male singer",
+  "female singer",
+  "rapper",
+  "spoken-word",
+  "indie",
+  "country",
+  "pop",
+  "kpop",
+];
+
 const canonicalizeRole = (value) => {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "co-producer" || normalized === "co producer") return "producer";
+  return normalized;
+};
+
+const canonicalizeToplinerSubfilter = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "k-pop") return "kpop";
+  if (normalized === "spoken word") return "spoken-word";
   return normalized;
 };
 
@@ -331,6 +351,13 @@ const normalizeRoles = (values) =>
     (values || [])
       .map((x) => canonicalizeRole(x))
       .filter((x) => SEEKING_OPTIONS.includes(x))
+  );
+
+const normalizeToplinerSubfilters = (values) =>
+  unique(
+    (values || [])
+      .map((x) => canonicalizeToplinerSubfilter(x))
+      .filter((x) => TOPLINER_SUBFILTER_OPTIONS.includes(x))
   );
 
 const ROLE_SEARCH_EQUIVALENTS = {
@@ -903,6 +930,11 @@ const loadSessions = () => {
     if (typeof next.publishedOnly !== "boolean") {
       changed = true;
       next = { ...next, publishedOnly: false };
+    }
+    const normalizedToplinerSubfilters = normalizeToplinerSubfilters(next.toplinerSubfilters || []);
+    if (JSON.stringify(normalizedToplinerSubfilters) !== JSON.stringify(next.toplinerSubfilters || [])) {
+      changed = true;
+      next = { ...next, toplinerSubfilters: normalizedToplinerSubfilters };
     }
     const normalizedPublishedRoleMinimums = normalizePublishedRoleMinimums(next.publishedRoleMinimums);
     if (JSON.stringify(normalizedPublishedRoleMinimums) !== JSON.stringify(next.publishedRoleMinimums || {})) {
@@ -2657,12 +2689,31 @@ const getSelectedSeeking = () =>
       .map((input) => String(input.value || "").trim().toLowerCase())
   );
 
+const getSelectedToplinerSubfilters = () =>
+  normalizeToplinerSubfilters(
+    toplinerOptionInputs
+      .filter((input) => input.checked)
+      .map((input) => String(input.value || "").trim().toLowerCase())
+  );
+
 const syncSessionSeekingPills = () => {
   seekingInputs.forEach((input) => {
     const pill = input.closest(".session-seeking-pill");
     if (!pill) return;
     pill.classList.toggle("active", Boolean(input.checked));
   });
+};
+
+const syncToplinerOptionsUi = () => {
+  if (!toplinerOptionsContainer) return;
+  const seeking = getSelectedSeeking();
+  const show = seeking.includes("topliner");
+  toplinerOptionsContainer.classList.toggle("hidden", !show);
+  if (!show) {
+    toplinerOptionInputs.forEach((input) => {
+      input.checked = false;
+    });
+  }
 };
 
 const syncPublishedRosterSlotsUi = () => {
@@ -3464,6 +3515,7 @@ const getFitLabel = (score) => {
 const summarizeReasons = (parts, session) => {
   const lines = [];
   const sessionSeeking = normalizeRoles(session.seeking || []);
+  const toplinerSubfilters = normalizeToplinerSubfilters(session.toplinerSubfilters || []);
   const directionTags = (session.requiredTags || []).filter(
     (tag) => !sessionSeeking.includes(tag) && !SEEKING_OPTIONS.includes(tag)
   );
@@ -3490,11 +3542,16 @@ const summarizeReasons = (parts, session) => {
     }
   }
 
+  if (sessionSeeking.includes("topliner") && toplinerSubfilters.length) {
+    lines.push(`Topliner options: ${toplinerSubfilters.join(", ")}`);
+  }
+
   return lines.join(" | ");
 };
 
 const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) => {
   const sessionSeeking = normalizeRoles(session.seeking || []);
+  const toplinerSubfilters = normalizeToplinerSubfilters(session.toplinerSubfilters || []);
   const publishedRoleMinimums = normalizePublishedRoleMinimums(session.publishedRoleMinimums);
   const requiredPublishedCount = Object.values(publishedRoleMinimums).reduce((sum, n) => sum + n, 0);
   const effectiveMax = Math.max(max, requiredPublishedCount || 0);
@@ -3520,6 +3577,11 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
     .filter((writer) => {
       if (!sessionSeeking.length) return true;
       return sessionSeeking.some((role) => writerMatchesSeekingRole(writer, role));
+    })
+    .filter((writer) => {
+      if (!sessionSeeking.includes("topliner")) return true;
+      if (!toplinerSubfilters.length) return true;
+      return toplinerSubfilters.some((filter) => writerMatchesToplinerSubfilter(writer, filter));
     })
     .map((writer) => {
       const parts = getTagMatchParts(writer, session);
@@ -3610,6 +3672,28 @@ const writerMatchesSeekingRole = (writer, role) => {
       roles.includes(candidateRole) ||
       tags.some((tag) => tagMatchesQuery(tag, candidateRole))
   );
+};
+
+const TOPLINER_SUBFILTER_EQUIVALENTS = {
+  "male singer": ["male singer", "male vocalist", "male topliner", "male"],
+  "female singer": ["female singer", "female vocalist", "female topliner", "female"],
+  rapper: ["rapper", "rap"],
+  "spoken-word": ["spoken-word", "spoken word"],
+  indie: ["indie"],
+  country: ["country"],
+  pop: ["pop"],
+  kpop: ["kpop", "k-pop", "k pop"],
+};
+
+const writerMatchesToplinerSubfilter = (writer, filter) => {
+  const normalized = canonicalizeToplinerSubfilter(filter);
+  if (!normalized) return false;
+  if (normalized === "rapper" || normalized === "spoken-word") {
+    return writerMatchesSeekingRole(writer, normalized);
+  }
+  const tags = writer.tags || [];
+  const candidates = TOPLINER_SUBFILTER_EQUIVALENTS[normalized] || [normalized];
+  return candidates.some((candidate) => tags.some((tag) => tagMatchesQuery(tag, candidate)));
 };
 
 const buildCandidateNode = (entry, index, availabilityByWriterId) => {
@@ -4175,6 +4259,7 @@ sessionForm.addEventListener("submit", async (event) => {
 
   const brief = document.getElementById("session-title").value.trim();
   const seeking = getSelectedSeeking();
+  const toplinerSubfilters = getSelectedToplinerSubfilters();
   const location = document.getElementById("session-location").value.trim().toLowerCase();
   const scheduleMode = scheduleModeInput.value;
   const specificDate = sessionDateSpecificInput.value;
@@ -4241,6 +4326,7 @@ sessionForm.addEventListener("submit", async (event) => {
     includePublished,
     publishedOnly,
     publishedRoleMinimums,
+    toplinerSubfilters,
     requiredTags,
     priorityTags: [],
     schedule: {
@@ -4382,6 +4468,7 @@ generateReportButton.addEventListener("click", () => {
 seekingInputs.forEach((input) => {
   input.addEventListener("change", () => {
     syncSessionSeekingPills();
+    syncToplinerOptionsUi();
     syncPublishedRosterSlotsUi();
   });
 });
@@ -4431,6 +4518,7 @@ refreshSessionBriefButton.addEventListener("click", () => {
   scheduleModeInput.value = "";
   setScheduleModeUi();
   syncSessionSeekingPills();
+  syncToplinerOptionsUi();
   syncPublishedRosterSlotsUi();
   activeCandidateFilterKey = "";
   sessionStatus.textContent = "";
@@ -4715,6 +4803,7 @@ if (briefList) {
         input.checked = selectedSeeking.has(String(input.value || "").toLowerCase());
       });
       syncSessionSeekingPills();
+      syncToplinerOptionsUi();
       syncPublishedRosterSlotsUi();
       selectedBriefForSessionId = brief.id;
       setNewPairingOpen(true);
@@ -5128,6 +5217,7 @@ bindDateInputOpenOnClick(sessionDateSpecificInput);
 bindDateInputOpenOnClick(sessionDateStartInput);
 bindDateInputOpenOnClick(sessionDateEndInput);
 syncSessionSeekingPills();
+syncToplinerOptionsUi();
 syncPublishedRosterSlotsUi();
 setCalendarMenuOpen(false);
 setCalendarEventsViewMode("list");
