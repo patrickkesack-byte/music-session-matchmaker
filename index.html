@@ -70,7 +70,6 @@
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="topliner" /> topliner</label>
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="artist" /> artist</label>
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="producer" /> producer</label>
-              <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="co-producer" /> co-producer</label>
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="co-writer" /> co-writer</label>
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="multi-instrumentalist" /> multi-instrumentalist</label>
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="rapper" /> rapper</label>
@@ -100,11 +99,6 @@
                   </label>
                   <label class="role-count-row" data-role="producer">producer
                     <select name="published-role-min" data-role="producer">
-                      <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
-                    </select>
-                  </label>
-                  <label class="role-count-row" data-role="co-producer">co-producer
-                    <select name="published-role-min" data-role="co-producer">
                       <option value="0" selected>0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
                     </select>
                   </label>
@@ -228,13 +222,12 @@
             <fieldset class="seeking-group">
               <legend>Roles</legend>
               <label class="check-row"><input type="checkbox" name="writer-role" value="topliner" /> topliner</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="artist" /> artist</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="producer" /> producer</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="co-producer" /> co-producer</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="co-writer" /> co-writer</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="multi-instrumentalist" /> multi-instrumentalist</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="rapper" /> rapper</label>
-              <label class="check-row"><input type="checkbox" name="writer-role" value="spoken-word" /> spoken-word</label>
+            <label class="check-row"><input type="checkbox" name="writer-role" value="artist" /> artist</label>
+            <label class="check-row"><input type="checkbox" name="writer-role" value="producer" /> producer</label>
+            <label class="check-row"><input type="checkbox" name="writer-role" value="co-writer" /> co-writer</label>
+            <label class="check-row"><input type="checkbox" name="writer-role" value="multi-instrumentalist" /> multi-instrumentalist</label>
+            <label class="check-row"><input type="checkbox" name="writer-role" value="rapper" /> rapper</label>
+            <label class="check-row"><input type="checkbox" name="writer-role" value="spoken-word" /> spoken-word</label>
               <label class="check-row"><input type="checkbox" name="writer-role" value="singer" /> singer</label>
             </fieldset>
 
@@ -449,7 +442,6 @@
             <label class="check-row"><input type="checkbox" class="inline-role" value="topliner" /> topliner</label>
             <label class="check-row"><input type="checkbox" class="inline-role" value="artist" /> artist</label>
             <label class="check-row"><input type="checkbox" class="inline-role" value="producer" /> producer</label>
-            <label class="check-row"><input type="checkbox" class="inline-role" value="co-producer" /> co-producer</label>
             <label class="check-row"><input type="checkbox" class="inline-role" value="co-writer" /> co-writer</label>
             <label class="check-row"><input type="checkbox" class="inline-role" value="multi-instrumentalist" /> multi-instrumentalist</label>
             <label class="check-row"><input type="checkbox" class="inline-role" value="rapper" /> rapper</label>

@@ -313,7 +313,6 @@ const SEEKING_OPTIONS = [
   "topliner",
   "artist",
   "producer",
-  "co-producer",
   "co-writer",
   "multi-instrumentalist",
   "rapper",
@@ -321,8 +320,18 @@ const SEEKING_OPTIONS = [
   "singer",
 ];
 
+const canonicalizeRole = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "co-producer" || normalized === "co producer") return "producer";
+  return normalized;
+};
+
 const normalizeRoles = (values) =>
-  unique((values || []).map((x) => String(x || "").trim().toLowerCase()).filter((x) => SEEKING_OPTIONS.includes(x)));
+  unique(
+    (values || [])
+      .map((x) => canonicalizeRole(x))
+      .filter((x) => SEEKING_OPTIONS.includes(x))
+  );
 
 const ROLE_SEARCH_EQUIVALENTS = {
   topliner: ["topliner", "singer"],
@@ -2701,9 +2710,11 @@ const normalizePublishedRoleMinimums = (minimums) => {
   const out = {};
   if (!minimums || typeof minimums !== "object") return out;
   Object.entries(minimums).forEach(([role, raw]) => {
-    const normalizedRole = String(role || "").trim().toLowerCase();
+    const normalizedRole = canonicalizeRole(role);
     const count = Math.max(0, Number.parseInt(String(raw || 0), 10) || 0);
-    if (SEEKING_OPTIONS.includes(normalizedRole) && count > 0) out[normalizedRole] = count;
+    if (SEEKING_OPTIONS.includes(normalizedRole) && count > 0) {
+      out[normalizedRole] = (out[normalizedRole] || 0) + count;
+    }
   });
   return out;
 };
