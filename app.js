@@ -21,7 +21,7 @@ const PAIRING_STATUS = {
 const PAIRING_RESULTS_PAGE_SIZE = 10;
 const ORG_ALLOWED_EMAIL_DOMAIN = "insomniac.com";
 const SHARED_OWNER_ID = "00000000-0000-0000-0000-000000000001";
-const AUTO_LOGOUT_INACTIVITY_MS = 12 * 60 * 60 * 1000;
+const AUTO_LOGOUT_INACTIVITY_MS = 7 * 60 * 60 * 1000;
 const ACTIVITY_PERSIST_MIN_MS = 60 * 1000;
 
 const songwriterForm = document.getElementById("songwriter-form");
@@ -544,7 +544,7 @@ const clearAuthActivity = () => {
 
 const signOutForInactivity = async () => {
   if (!supabaseClient || !supabaseUser) return;
-  authSignedOutReason = "Signed out after 12 hours of inactivity.";
+  authSignedOutReason = "Signed out after 7 hours of inactivity.";
   clearAutoLogoutTimer();
   clearAuthActivity();
   try {
