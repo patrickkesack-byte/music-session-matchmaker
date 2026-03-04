@@ -2948,7 +2948,15 @@ const renderSongwriters = () => {
     editButton.textContent = isInlineEditing ? "Close" : "Edit";
     node.querySelector(".songwriter-meta").textContent =
       `Location: ${writer.location} | ${writer.published ? "Published" : "Unpublished"} | Roster: ${writer.roster || "n/a"} | Calendar: ${writer.calendarProvider || "icloud"}${writer.calendarName ? ` (${writer.calendarName})` : ""} | Preferred: ${writer.preferredContact} | Personal: ${writer.personalContact} | Manager: ${writer.managerContact}`;
-    const roleText = SEEKING_OPTIONS.map((role) => `[${(writer.roles || []).includes(role) ? "x" : " "}] ${role}`).join("  ");
+    const selectedRoles = unique((writer.roles || []).map((role) => canonicalizeRole(role)).filter(Boolean));
+    const formatRole = (role) =>
+      String(role || "")
+        .split("-")
+        .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+        .join("-");
+    const roleText = selectedRoles.length
+      ? selectedRoles.map((role) => formatRole(role)).join(", ")
+      : "None";
     node.querySelector(".songwriter-roles").textContent = `Roles: ${roleText}`;
     node.querySelector(".songwriter-tags").textContent = `Tags: ${(writer.tags || []).join(", ")}`;
     node.querySelector(".songwriter-bio").textContent = `Bio: ${writer.bio || "missing"}`;
