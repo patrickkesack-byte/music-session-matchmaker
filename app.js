@@ -299,6 +299,40 @@ const DIRECT_TAG_MAP = new Set([
   "afrobeat",
 ]);
 
+const STRICT_INTENT_PHRASES = [
+  "dance pop",
+  "drum and bass",
+  "tech house",
+  "latin house",
+  "deep house",
+  "progressive house",
+  "electro house",
+  "future house",
+  "hip-hop",
+  "hip hop",
+  "k-pop",
+  "r&b",
+];
+
+const STRICT_INTENT_SINGLE_TAGS = new Set([
+  "rap",
+  "hip-hop",
+  "pop",
+  "dance",
+  "electronic",
+  "edm",
+  "house",
+  "techno",
+  "trance",
+  "indie",
+  "country",
+  "kpop",
+  "r&b",
+  "latin",
+  "afrobeat",
+  "afro",
+]);
+
 const BIO_GENRE_KEYWORD_TAG_MAP = [
   { pattern: /hip[\s-]?hop|trap|drill|rap\b/, tags: ["hip-hop", "rap"] },
   { pattern: /r&b|rnb|rhythm and blues|soul/, tags: ["r&b"] },
@@ -1088,6 +1122,17 @@ const loadSessions = () => {
     if (JSON.stringify(normalizedPublishedRoleMinimums) !== JSON.stringify(next.publishedRoleMinimums || {})) {
       changed = true;
       next = { ...next, publishedRoleMinimums: normalizedPublishedRoleMinimums };
+    }
+    const normalizedStrictIntentTags = Array.from(
+      new Set(
+        (Array.isArray(next.strictIntentTags) ? next.strictIntentTags : [])
+          .map((tag) => normalizeStrictIntentTag(tag))
+          .filter(Boolean)
+      )
+    );
+    if (JSON.stringify(normalizedStrictIntentTags) !== JSON.stringify(next.strictIntentTags || [])) {
+      changed = true;
+      next = { ...next, strictIntentTags: normalizedStrictIntentTags };
     }
     return next;
   });
@@ -2838,6 +2883,41 @@ const extractTagsFromBrief = (brief) => {
   return Array.from(tags);
 };
 
+const normalizeStrictIntentTag = (value) => {
+  const normalized = normalizeTagMatchText(value);
+  if (!normalized) return "";
+  if (normalized === "k pop") return "kpop";
+  if (normalized === "hip hop" || normalized === "hiphop") return "hip-hop";
+  if (normalized === "rnb" || normalized === "r b") return "r&b";
+  return normalized;
+};
+
+const extractStrictIntentTags = (prompt) => {
+  const text = normalizeTagMatchText(prompt);
+  if (!text) return [];
+  const strict = new Set();
+
+  STRICT_INTENT_PHRASES.forEach((phrase) => {
+    const phraseNorm = normalizeTagMatchText(phrase);
+    if (phraseNorm && text.includes(phraseNorm)) {
+      strict.add(normalizeStrictIntentTag(phraseNorm));
+    }
+  });
+
+  text.split(" ").forEach((token) => {
+    const normalized = normalizeStrictIntentTag(token);
+    if (STRICT_INTENT_SINGLE_TAGS.has(normalized)) {
+      strict.add(normalized);
+    }
+  });
+
+  if (text.includes("hip hop")) strict.add("hip-hop");
+  if (text.includes("rnb")) strict.add("r&b");
+  if (text.includes("k pop")) strict.add("kpop");
+
+  return Array.from(strict);
+};
+
 const getSelectedSeeking = () =>
   normalizeRoles(
     seekingInputs
@@ -3814,6 +3894,29 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
   const sessionSeeking = normalizeRoles(session.seeking || []);
   const toplinerSubfilters = normalizeToplinerSubfilters(session.toplinerSubfilters || []);
   const producerSubfilters = normalizeProducerSubfilters(session.producerSubfilters || []);
+  const strictIntentTags = Array.from(
+    new Set(
+      (Array.isArray(session.strictIntentTags) ? session.strictIntentTags : [])
+        .map((tag) => normalizeStrictIntentTag(tag))
+        .filter(Boolean)
+    )
+  );
+  const strictIntentCandidates = (tag) => {
+    const normalized = normalizeStrictIntentTag(tag);
+    if (!normalized) return [];
+    if (normalized === "rap") return ["rap", "hip-hop", "hip hop", "trap", "drill"];
+    if (normalized === "hip-hop") return ["hip-hop", "hip hop", "rap", "trap", "drill"];
+    if (normalized === "electronic") return ["electronic", "edm", "dance", "house", "techno", "trance"];
+    if (normalized === "r&b") return ["r&b", "rnb"];
+    if (normalized === "kpop") return ["kpop", "k-pop"];
+    return [normalized];
+  };
+  const writerMatchesStrictIntentTag = (writer, strictTag) => {
+    const tags = (writer.tags || []).map((tag) => normalizeTagMatchText(tag)).filter(Boolean);
+    const candidates = strictIntentCandidates(strictTag);
+    if (!candidates.length) return true;
+    return candidates.some((candidate) => tags.some((tag) => tagMatchesQuery(tag, candidate)));
+  };
   const publishedRoleMinimums = normalizePublishedRoleMinimums(session.publishedRoleMinimums);
   const requiredPublishedCount = Object.values(publishedRoleMinimums).reduce((sum, n) => sum + n, 0);
   const effectiveMax = Math.max(max, requiredPublishedCount || 0);
@@ -3849,6 +3952,10 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
       if (!sessionSeeking.includes("producer")) return true;
       if (!producerSubfilters.length) return true;
       return producerSubfilters.some((filter) => writerMatchesProducerSubfilter(writer, filter));
+    })
+    .filter((writer) => {
+      if (!strictIntentTags.length) return true;
+      return strictIntentTags.every((tag) => writerMatchesStrictIntentTag(writer, tag));
     })
     .map((writer) => {
       const parts = getTagMatchParts(writer, session);
@@ -4559,7 +4666,8 @@ sessionForm.addEventListener("submit", async (event) => {
   const seeking = getSelectedSeeking();
   const toplinerSubfilters = getSelectedToplinerSubfilters();
   const producerSubfilters = getSelectedProducerSubfilters();
-  const location = document.getElementById("session-location").value.trim().toLowerCase();
+  const locationInputValue = document.getElementById("session-location").value.trim().toLowerCase();
+  const location = locationInputValue || "anywhere";
   const scheduleMode = scheduleModeInput.value;
   const specificDate = sessionDateSpecificInput.value;
   const startDate = sessionDateStartInput.value;
@@ -4587,15 +4695,7 @@ sessionForm.addEventListener("submit", async (event) => {
     sessionStatus.textContent = `Published roster slot "${invalidPublishedRoleMinimum}" must also be selected in Seeking.`;
     return;
   }
-  if (!location) {
-    if (sessionLocationStatus) {
-      sessionLocationStatus.textContent = "need location";
-    } else {
-      sessionStatus.textContent = "need location";
-    }
-    sessionLocationInput?.focus();
-    return;
-  }
+  if (!locationInputValue) sessionLocationInput.value = "anywhere";
   if (!scheduleMode) {
     sessionStatus.textContent = "need date(s)";
     return;
@@ -4614,6 +4714,7 @@ sessionForm.addEventListener("submit", async (event) => {
   }
 
   const directionTags = extractTagsFromBrief(brief);
+  const strictIntentTags = extractStrictIntentTags(pairingPrompt);
   const requiredTags = ensureLocationTag(unique([...directionTags]), location);
 
   const session = {
@@ -4628,6 +4729,7 @@ sessionForm.addEventListener("submit", async (event) => {
     publishedRoleMinimums,
     toplinerSubfilters,
     producerSubfilters,
+    strictIntentTags,
     requiredTags,
     priorityTags: [],
     schedule: {
