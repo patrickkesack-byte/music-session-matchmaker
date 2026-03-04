@@ -3143,8 +3143,11 @@ const renderSongwriters = () => {
     editButton.dataset.writerId = writer.id;
     deleteButton.dataset.writerId = writer.id;
     editButton.textContent = isInlineEditing ? "Close" : "Edit";
+    const personalContact = String(writer.personalContact || "").trim();
+    const managerContact = String(writer.managerContact || "").trim();
+    const contactValue = [personalContact, managerContact].filter(Boolean).join(" / ") || "n/a";
     node.querySelector(".songwriter-meta").textContent =
-      `Location: ${writer.location} | ${writer.published ? "Published" : "Unpublished"} | Roster: ${writer.roster || "n/a"} | Calendar: ${writer.calendarProvider || "icloud"}${writer.calendarName ? ` (${writer.calendarName})` : ""} | Preferred: ${writer.preferredContact} | Personal: ${writer.personalContact} | Manager: ${writer.managerContact}`;
+      `Location: ${writer.location} | Roster: ${writer.roster || "n/a"} | Contact: ${contactValue}`;
     const selectedRoles = unique((writer.roles || []).map((role) => canonicalizeRole(role)).filter(Boolean));
     const formatRole = (role) =>
       String(role || "")
