@@ -3833,7 +3833,7 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
   const requiresBriefMatch = briefOnlyTags.length > 0;
   const briefOnlyTagSet = new Set(briefOnlyTags.map((tag) => normalizeLocationText(tag)));
 
-  const scored = [...songwriters]
+  const ranked = [...songwriters]
     .filter((writer) => (session.publishedOnly ? writer.published : true))
     .filter((writer) => writerMatchesSessionLocation(writer, session.location))
     .filter((writer) => {
@@ -3862,11 +3862,14 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
         reasons: summarizeReasons(parts, session),
       };
     })
-    .filter((entry) => {
-      if (requiresBriefMatch) return entry.briefMatchCount > 0;
-      return true;
-    })
     .sort((a, b) => b.score - a.score);
+
+  let scored = ranked;
+  if (requiresBriefMatch) {
+    const strictBriefMatches = ranked.filter((entry) => entry.briefMatchCount > 0);
+    // If AI brief text is broad/noisy and strict pass returns none, fall back to ranked role/location matches.
+    scored = strictBriefMatches.length ? strictBriefMatches : ranked;
+  }
 
   if (session.includePublished && !session.publishedOnly) {
     const firstPublishedIndex = scored.findIndex((entry) => entry.writer.published);
