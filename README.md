@@ -4,6 +4,7 @@ A lightweight MVP web app for music publishers to run session pairings and manag
 
 ## What it does
 
+- Supports AI prompt-first pairing via OpenAI (`/api/ai-pairing`) to extract roles/date/location/scope from one natural-language input
 - Maintains songwriter profiles with required bio, location, and contacts
 - Supports optional calendar linkage per songwriter:
   - `calendar_provider` = `google` or `icloud`
@@ -67,3 +68,10 @@ Tag format:
 
 - Use songwriter `calendar_provider = icloud` and set `calendar_id` to a shared ICS/webcal URL
 - If direct browser fetch is blocked, set `iCloud ICS Proxy URL` in the app (local proxy recommended)
+
+## OpenAI setup (prompt-first pairing)
+
+- In Vercel Project Settings -> Environment Variables, add:
+  - `OPENAI_API_KEY` (required)
+  - `OPENAI_MODEL` (optional; default is `gpt-4o-mini`)
+- Redeploy after setting env vars.

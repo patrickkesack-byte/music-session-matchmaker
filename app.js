@@ -26,6 +26,7 @@ const ACTIVITY_PERSIST_MIN_MS = 60 * 1000;
 
 const songwriterForm = document.getElementById("songwriter-form");
 const sessionForm = document.getElementById("session-form");
+const pairingPromptInput = document.getElementById("ai-pairing-prompt");
 const sessionLocationInput = document.getElementById("session-location");
 const appShell = document.querySelector(".app-shell");
 const authOpenButton = document.getElementById("auth-open");
@@ -2733,6 +2734,77 @@ const getSelectedProducerSubfilters = () =>
       .map((input) => String(input.value || "").trim().toLowerCase())
   );
 
+const parseAiPairingPrompt = async (prompt) => {
+  const response = await fetch("/api/ai-pairing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      prompt,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Los_Angeles",
+      nowIso: new Date().toISOString(),
+    }),
+  });
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch (_error) {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error || "AI pairing parse failed.");
+  }
+
+  return payload || {};
+};
+
+const applyAiPairingParse = (prompt, parsed) => {
+  const nextSeeking = new Set(normalizeRoles(parsed?.seeking || []));
+  const nextTopliner = new Set(normalizeToplinerSubfilters(parsed?.toplinerOptions || []));
+  const nextProducer = new Set(normalizeProducerSubfilters(parsed?.producerOptions || []));
+  const scheduleMode = ["anytime", "specific", "range"].includes(parsed?.scheduleMode) ? parsed.scheduleMode : "anytime";
+  const publishedScope = String(parsed?.publishedScope || "all").toLowerCase();
+
+  document.getElementById("session-title").value = String(parsed?.brief || "").trim() || prompt;
+  sessionLocationInput.value = String(parsed?.location || "").trim() || "anywhere";
+  scheduleModeInput.value = scheduleMode;
+  sessionDateSpecificInput.value = scheduleMode === "specific" ? String(parsed?.specificDate || "").slice(0, 10) : "";
+  sessionDateStartInput.value = scheduleMode === "range" ? String(parsed?.startDate || "").slice(0, 10) : "";
+  sessionDateEndInput.value = scheduleMode === "range" ? String(parsed?.endDate || "").slice(0, 10) : "";
+  setScheduleModeUi();
+
+  seekingInputs.forEach((input) => {
+    input.checked = nextSeeking.has(canonicalizeRole(input.value));
+  });
+
+  toplinerOptionInputs.forEach((input) => {
+    input.checked = nextTopliner.has(canonicalizeToplinerSubfilter(input.value));
+  });
+
+  producerOptionInputs.forEach((input) => {
+    input.checked = nextProducer.has(canonicalizeRole(input.value));
+  });
+
+  if (publishedOnlyInput && includePublishedInput) {
+    if (publishedScope === "only") {
+      publishedOnlyInput.checked = true;
+      includePublishedInput.checked = false;
+    } else if (publishedScope === "include") {
+      publishedOnlyInput.checked = false;
+      includePublishedInput.checked = true;
+    } else {
+      publishedOnlyInput.checked = false;
+      includePublishedInput.checked = false;
+    }
+  }
+
+  syncSessionSeekingPills();
+  syncToplinerOptionsUi();
+  syncProducerOptionsUi();
+  syncPublishedRosterSlotsUi();
+};
+
 const syncSessionSeekingPills = () => {
   seekingInputs.forEach((input) => {
     const pill = input.closest(".session-seeking-pill");
@@ -4332,6 +4404,20 @@ sessionForm.addEventListener("submit", async (event) => {
   persistGoogleSettingsFromUi();
   if (sessionLocationStatus) sessionLocationStatus.textContent = "";
 
+  const pairingPrompt = String(pairingPromptInput?.value || "").trim();
+  if (!pairingPrompt) {
+    sessionStatus.textContent = "Add a pairing prompt.";
+    pairingPromptInput?.focus();
+    return;
+  }
+  try {
+    const parsed = await parseAiPairingPrompt(pairingPrompt);
+    applyAiPairingParse(pairingPrompt, parsed);
+  } catch (error) {
+    sessionStatus.textContent = error.message || "Could not parse prompt.";
+    return;
+  }
+
   const brief = document.getElementById("session-title").value.trim();
   const seeking = getSelectedSeeking();
   const toplinerSubfilters = getSelectedToplinerSubfilters();
@@ -4397,6 +4483,7 @@ sessionForm.addEventListener("submit", async (event) => {
     id: crypto.randomUUID(),
     title: brief,
     briefText: brief,
+    promptText: pairingPrompt,
     location,
     seeking,
     includePublished,
@@ -4875,6 +4962,7 @@ if (briefList) {
 
     if (target.classList.contains("brief-create-session")) {
       const brief = briefs[idx];
+      if (pairingPromptInput) pairingPromptInput.value = brief.briefText || brief.title || "";
       document.getElementById("session-title").value = brief.briefText || "";
       document.getElementById("session-location").value = brief.location || "";
       const selectedSeeking = new Set(normalizeRoles(brief.seeking || []));

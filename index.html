@@ -65,6 +65,17 @@
       <section id="pairing-view" class="view active">
         <div class="card">
           <form id="session-form">
+            <label>
+              Pairing Prompt
+              <input
+                type="text"
+                id="ai-pairing-prompt"
+                required
+                placeholder="looking for a published writer to join a session on May 12, direction is dance pop meets indie"
+              />
+            </label>
+
+            <div class="hidden" id="pairing-derived-fields">
             <fieldset class="seeking-group session-seeking-group">
               <legend>Seeking</legend>
               <label class="check-row session-seeking-pill"><input type="checkbox" name="session-seeking" value="topliner" /> topliner</label>
@@ -180,6 +191,7 @@
                 End Date
                 <input type="date" id="session-date-end" />
               </label>
+            </div>
             </div>
 
             <div class="form-actions">
