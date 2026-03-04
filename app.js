@@ -580,7 +580,7 @@ const clearAuthActivity = () => {
 
 const signOutForInactivity = async () => {
   if (!supabaseClient || !supabaseUser) return;
-  authSignedOutReason = "Signed out after 7 hours of inactivity.";
+  authSignedOutReason = "";
   clearAutoLogoutTimer();
   clearAuthActivity();
   try {
