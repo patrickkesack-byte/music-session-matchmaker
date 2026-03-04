@@ -9,7 +9,6 @@ const STORAGE_KEYS = {
   briefs: "sessionSync.briefs",
 };
 
-const MIN_FIT_SCORE = 40;
 const GOOGLE_CAL_SCOPE =
   "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events";
 const PAIRING_STATUS = {
@@ -349,12 +348,25 @@ const normalizeTagField = (text) =>
 
 const unique = (arr) => Array.from(new Set(arr));
 
+const HOP_TAG_VARIANTS = new Set(["hip-hop", "hip hop", "hiphop", "hip-hip"]);
+
+const expandGenreTagSynonyms = (tags) => {
+  const out = unique((tags || []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean));
+  const hasRap = out.includes("rap");
+  const hasHipHopVariant = out.some((tag) => HOP_TAG_VARIANTS.has(tag));
+  if (hasRap || hasHipHopVariant) {
+    if (!out.includes("rap")) out.push("rap");
+    if (!out.includes("hip-hop")) out.push("hip-hop");
+  }
+  return unique(out);
+};
+
 const normalizeTagsArray = (tags) =>
-  unique(
+  expandGenreTagSynonyms(unique(
     (Array.isArray(tags) ? tags : [])
       .map((tag) => String(tag || "").trim().toLowerCase())
       .filter(Boolean)
-  );
+  ));
 
 const deriveGenreTagsFromBio = (bio) => {
   const raw = String(bio || "").toLowerCase();
@@ -904,6 +916,12 @@ const loadSongwriters = () => {
 
   const normalized = list.map((writer) => {
     let next = normalizeSongwriterRecord(writer);
+    const originalTags = normalizeTagsArray(Array.isArray(writer?.tags) ? writer.tags : []);
+    const normalizedTags = normalizeTagsArray(Array.isArray(next?.tags) ? next.tags : []);
+    if (JSON.stringify(originalTags) !== JSON.stringify(normalizedTags)) {
+      changed = true;
+      next = { ...next, tags: normalizedTags };
+    }
 
     if (!next.bio || !next.bio.trim()) {
       changed = true;
@@ -3802,7 +3820,7 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
     })
     .filter((entry) => {
       if (requiresBriefMatch) return entry.briefMatchCount > 0;
-      return entry.score >= MIN_FIT_SCORE;
+      return true;
     })
     .sort((a, b) => b.score - a.score);
 
@@ -4014,7 +4032,7 @@ const renderLatestSessionResult = async () => {
   if (!allSongwriters.length) {
     candidateList.innerHTML = "<p class='hint'>Add songwriters with tags to generate matches.</p>";
   } else if (!candidates.length) {
-    candidateList.innerHTML = "<p class='hint'>No matches at or above 40% fit.</p>";
+    candidateList.innerHTML = "<p class='hint'>No matches found.</p>";
     activeCandidateFilterKey = "";
   } else {
     const seekingRoles = normalizeRoles(latest.seeking || []);
@@ -4105,7 +4123,7 @@ const renderLatestSessionResult = async () => {
 
 const buildPairingReport = (candidates) => {
   if (!candidates.length) {
-    return "No candidates met the 40% fit threshold.";
+    return "No candidates found.";
   }
 
   const lines = [];
