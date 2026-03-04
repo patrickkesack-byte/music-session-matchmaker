@@ -14,6 +14,19 @@ const ALLOWED_TOPLINER_OPTIONS = [
 const ALLOWED_PRODUCER_OPTIONS = ["multi-instrumentalist"];
 const ALLOWED_SCHEDULE_MODES = ["anytime", "specific", "range"];
 const ALLOWED_PUBLISHED_SCOPE = ["all", "include", "only"];
+const LOCATION_NEUTRAL_VALUES = new Set(["", "anywhere", "any", "global", "not specified", "unspecified", "unknown", "n/a"]);
+const LOCATION_REMOTE_VALUES = new Set(["remote", "virtual", "online"]);
+const LOCATION_INVALID_HINTS = [
+  "looking for",
+  "collaboration",
+  "producer",
+  "topliner",
+  "create",
+  "genres",
+  "vibe",
+  "style",
+  "direction",
+];
 
 const normalizeList = (values) =>
   Array.from(
@@ -36,6 +49,15 @@ const sanitizeDate = (value) => {
   return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
 };
 
+const sanitizeLocation = (value) => {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw || LOCATION_NEUTRAL_VALUES.has(raw)) return "anywhere";
+  if (LOCATION_REMOTE_VALUES.has(raw)) return "remote";
+  if (raw.length > 48) return "anywhere";
+  if (LOCATION_INVALID_HINTS.some((hint) => raw.includes(hint))) return "anywhere";
+  return raw;
+};
+
 const sanitizeParsed = (parsed, prompt) => {
   const seeking = normalizeList(parsed.seeking).map(normalizeRole).filter((x) => ALLOWED_SEEKING.includes(x));
   const toplinerOptions = normalizeList(parsed.toplinerOptions)
@@ -53,7 +75,7 @@ const sanitizeParsed = (parsed, prompt) => {
 
   return {
     brief: String(parsed.brief || "").trim() || String(prompt || "").trim(),
-    location: String(parsed.location || "").trim() || "anywhere",
+    location: sanitizeLocation(parsed.location),
     scheduleMode,
     specificDate: scheduleMode === "specific" ? sanitizeDate(parsed.specificDate) : "",
     startDate: scheduleMode === "range" ? sanitizeDate(parsed.startDate) : "",
