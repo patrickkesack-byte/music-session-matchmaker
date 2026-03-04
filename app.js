@@ -317,8 +317,6 @@ const SEEKING_OPTIONS = [
   "producer",
   "co-writer",
   "multi-instrumentalist",
-  "rapper",
-  "spoken-word",
   "singer",
 ];
 
@@ -327,6 +325,8 @@ const TOPLINER_SUBFILTER_OPTIONS = [
   "female singer",
   "rapper",
   "spoken-word",
+  "melodic",
+  "anthemic",
   "indie",
   "country",
   "pop",
@@ -3692,6 +3692,8 @@ const TOPLINER_SUBFILTER_EQUIVALENTS = {
   "female singer": ["female singer", "female vocalist", "female topliner", "female"],
   rapper: ["rapper", "rap"],
   "spoken-word": ["spoken-word", "spoken word"],
+  melodic: ["melodic", "melody-driven", "melodic topliner"],
+  anthemic: ["anthemic", "anthem", "anthem topliner"],
   indie: ["indie"],
   country: ["country"],
   pop: ["pop"],
