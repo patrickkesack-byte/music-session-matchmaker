@@ -349,6 +349,30 @@ const normalizeTagField = (text) =>
 const unique = (arr) => Array.from(new Set(arr));
 
 const HOP_TAG_VARIANTS = new Set(["hip-hop", "hip hop", "hiphop", "hip-hip"]);
+const DANCE_ELECTRONIC_KEYWORDS = [
+  "edm",
+  "electronic",
+  "dance",
+  "house",
+  "tech house",
+  "latin house",
+  "deep house",
+  "progressive house",
+  "bass house",
+  "electro house",
+  "future house",
+  "techno",
+  "trance",
+  "drum and bass",
+  "dnb",
+  "dubstep",
+  "electro",
+  "future bass",
+  "garage",
+  "ukg",
+  "hardstyle",
+  "hard techno",
+];
 
 const expandGenreTagSynonyms = (tags) => {
   const out = unique((tags || []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean));
@@ -361,12 +385,29 @@ const expandGenreTagSynonyms = (tags) => {
   return unique(out);
 };
 
+const expandDanceElectronicTags = (tags) => {
+  const out = unique((tags || []).map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean));
+  const hasDanceElectronicSubgenre = out.some((tag) => {
+    const text = ` ${tag.replace(/[^a-z0-9]+/g, " ")} `;
+    return DANCE_ELECTRONIC_KEYWORDS.some((keyword) => text.includes(` ${keyword} `));
+  });
+  if (hasDanceElectronicSubgenre) {
+    if (!out.includes("dance")) out.push("dance");
+    if (!out.includes("electronic")) out.push("electronic");
+  }
+  return unique(out);
+};
+
 const normalizeTagsArray = (tags) =>
-  expandGenreTagSynonyms(unique(
-    (Array.isArray(tags) ? tags : [])
-      .map((tag) => String(tag || "").trim().toLowerCase())
-      .filter(Boolean)
-  ));
+  expandDanceElectronicTags(
+    expandGenreTagSynonyms(
+      unique(
+        (Array.isArray(tags) ? tags : [])
+          .map((tag) => String(tag || "").trim().toLowerCase())
+          .filter(Boolean)
+      )
+    )
+  );
 
 const deriveGenreTagsFromBio = (bio) => {
   const raw = String(bio || "").toLowerCase();
