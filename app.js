@@ -610,6 +610,11 @@ const scheduleAutoLogoutCheck = () => {
 
 const registerAuthActivity = (force = false) => {
   if (!supabaseUser) return;
+  const lastActivity = getLastAuthActivityMs();
+  if (!force && lastActivity && Date.now() - lastActivity >= AUTO_LOGOUT_INACTIVITY_MS) {
+    signOutForInactivity();
+    return;
+  }
   persistAuthActivity(force);
   scheduleAutoLogoutCheck();
 };
@@ -1275,7 +1280,11 @@ const initSupabaseClient = async () => {
       setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
     }
     if (supabaseUser) {
-      registerAuthActivity(true);
+      if (getLastAuthActivityMs()) {
+        scheduleAutoLogoutCheck();
+      } else {
+        registerAuthActivity(true);
+      }
     } else {
       clearAutoLogoutTimer();
       clearAuthActivity();
@@ -1287,7 +1296,7 @@ const initSupabaseClient = async () => {
     } else {
       startRemoteSongwriterSync();
     }
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
       supabaseUser = session?.user || null;
       if (supabaseUser && !isOrgSupabaseUser(supabaseUser)) {
         setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
@@ -1295,7 +1304,11 @@ const initSupabaseClient = async () => {
         supabaseUser = null;
       }
       if (supabaseUser) {
-        registerAuthActivity(true);
+        if (event === "SIGNED_IN") {
+          registerAuthActivity(true);
+        } else {
+          scheduleAutoLogoutCheck();
+        }
       } else {
         clearAutoLogoutTimer();
         clearAuthActivity();
