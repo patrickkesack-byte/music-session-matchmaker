@@ -3878,18 +3878,19 @@ const renderLatestSessionResult = async () => {
   const renderId = ++latestRenderCycle;
   const sessions = loadSessions();
   const latest = sessions.find((s) => s.id === latestRenderedSessionId);
-  sessionsList.innerHTML = "";
-  latestRenderedCandidates = [];
 
   if (!showLatestPairingResults || !latest || !latestRenderedSessionId) {
     generateReportButton.disabled = true;
     reportPanel.classList.add("hidden");
     sessionsList.innerHTML = "";
+    sessionsList.classList.remove("loading");
+    latestRenderedCandidates = [];
     if (pairingResultsCard) pairingResultsCard.classList.add("hidden");
     if (seeMorePairingResultsButton) seeMorePairingResultsButton.classList.add("hidden");
     return;
   }
   if (pairingResultsCard) pairingResultsCard.classList.remove("hidden");
+  sessionsList.classList.add("loading");
 
   const allSongwriters = loadSongwriters();
   const allCandidates = getTopCandidates(latest, allSongwriters);
@@ -3931,7 +3932,10 @@ const renderLatestSessionResult = async () => {
     });
   }
 
-  if (renderId !== latestRenderCycle) return;
+  if (renderId !== latestRenderCycle) {
+    sessionsList.classList.remove("loading");
+    return;
+  }
 
   const node = sessionTemplate.content.cloneNode(true);
   node.querySelector(".session-title").textContent = latest.title;
@@ -4028,7 +4032,9 @@ const renderLatestSessionResult = async () => {
     seeMorePairingResultsButton.classList.toggle("hidden", !hasMore);
     seeMorePairingResultsButton.disabled = !hasMore;
   }
+  sessionsList.innerHTML = "";
   sessionsList.append(node);
+  sessionsList.classList.remove("loading");
 };
 
 const buildPairingReport = (candidates) => {
