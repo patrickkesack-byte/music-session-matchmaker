@@ -114,6 +114,8 @@ const publishedSlotInline = document.getElementById("published-slot-inline");
 const seekingInputs = Array.from(document.querySelectorAll('input[name="session-seeking"]'));
 const toplinerOptionsContainer = document.getElementById("topliner-options");
 const toplinerOptionInputs = Array.from(document.querySelectorAll('input[name="topliner-option"]'));
+const producerOptionsContainer = document.getElementById("producer-options");
+const producerOptionInputs = Array.from(document.querySelectorAll('input[name="producer-option"]'));
 const publishedRoleMinInputs = Array.from(document.querySelectorAll('select[name="published-role-min"]'));
 const briefSeekingInputs = Array.from(document.querySelectorAll('input[name="brief-seeking"]'));
 const writerRoleInputs = Array.from(document.querySelectorAll('input[name="writer-role"]'));
@@ -316,7 +318,6 @@ const SEEKING_OPTIONS = [
   "artist",
   "producer",
   "co-writer",
-  "multi-instrumentalist",
   "singer",
 ];
 
@@ -331,6 +332,10 @@ const TOPLINER_SUBFILTER_OPTIONS = [
   "country",
   "pop",
   "kpop",
+];
+
+const PRODUCER_SUBFILTER_OPTIONS = [
+  "multi-instrumentalist",
 ];
 
 const canonicalizeRole = (value) => {
@@ -358,6 +363,13 @@ const normalizeToplinerSubfilters = (values) =>
     (values || [])
       .map((x) => canonicalizeToplinerSubfilter(x))
       .filter((x) => TOPLINER_SUBFILTER_OPTIONS.includes(x))
+  );
+
+const normalizeProducerSubfilters = (values) =>
+  unique(
+    (values || [])
+      .map((x) => canonicalizeRole(x))
+      .filter((x) => PRODUCER_SUBFILTER_OPTIONS.includes(x))
   );
 
 const ROLE_SEARCH_EQUIVALENTS = {
@@ -940,6 +952,11 @@ const loadSessions = () => {
     if (JSON.stringify(normalizedToplinerSubfilters) !== JSON.stringify(next.toplinerSubfilters || [])) {
       changed = true;
       next = { ...next, toplinerSubfilters: normalizedToplinerSubfilters };
+    }
+    const normalizedProducerSubfilters = normalizeProducerSubfilters(next.producerSubfilters || []);
+    if (JSON.stringify(normalizedProducerSubfilters) !== JSON.stringify(next.producerSubfilters || [])) {
+      changed = true;
+      next = { ...next, producerSubfilters: normalizedProducerSubfilters };
     }
     const normalizedPublishedRoleMinimums = normalizePublishedRoleMinimums(next.publishedRoleMinimums);
     if (JSON.stringify(normalizedPublishedRoleMinimums) !== JSON.stringify(next.publishedRoleMinimums || {})) {
@@ -2709,6 +2726,13 @@ const getSelectedToplinerSubfilters = () =>
       .map((input) => String(input.value || "").trim().toLowerCase())
   );
 
+const getSelectedProducerSubfilters = () =>
+  normalizeProducerSubfilters(
+    producerOptionInputs
+      .filter((input) => input.checked)
+      .map((input) => String(input.value || "").trim().toLowerCase())
+  );
+
 const syncSessionSeekingPills = () => {
   seekingInputs.forEach((input) => {
     const pill = input.closest(".session-seeking-pill");
@@ -2724,6 +2748,18 @@ const syncToplinerOptionsUi = () => {
   toplinerOptionsContainer.classList.toggle("hidden", !show);
   if (!show) {
     toplinerOptionInputs.forEach((input) => {
+      input.checked = false;
+    });
+  }
+};
+
+const syncProducerOptionsUi = () => {
+  if (!producerOptionsContainer) return;
+  const seeking = getSelectedSeeking();
+  const show = seeking.includes("producer");
+  producerOptionsContainer.classList.toggle("hidden", !show);
+  if (!show) {
+    producerOptionInputs.forEach((input) => {
       input.checked = false;
     });
   }
@@ -3529,6 +3565,7 @@ const summarizeReasons = (parts, session) => {
   const lines = [];
   const sessionSeeking = normalizeRoles(session.seeking || []);
   const toplinerSubfilters = normalizeToplinerSubfilters(session.toplinerSubfilters || []);
+  const producerSubfilters = normalizeProducerSubfilters(session.producerSubfilters || []);
   const directionTags = (session.requiredTags || []).filter(
     (tag) => !sessionSeeking.includes(tag) && !SEEKING_OPTIONS.includes(tag)
   );
@@ -3558,6 +3595,9 @@ const summarizeReasons = (parts, session) => {
   if (sessionSeeking.includes("topliner") && toplinerSubfilters.length) {
     lines.push(`Topliner options: ${toplinerSubfilters.join(", ")}`);
   }
+  if (sessionSeeking.includes("producer") && producerSubfilters.length) {
+    lines.push(`Producer options: ${producerSubfilters.join(", ")}`);
+  }
 
   return lines.join(" | ");
 };
@@ -3565,6 +3605,7 @@ const summarizeReasons = (parts, session) => {
 const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) => {
   const sessionSeeking = normalizeRoles(session.seeking || []);
   const toplinerSubfilters = normalizeToplinerSubfilters(session.toplinerSubfilters || []);
+  const producerSubfilters = normalizeProducerSubfilters(session.producerSubfilters || []);
   const publishedRoleMinimums = normalizePublishedRoleMinimums(session.publishedRoleMinimums);
   const requiredPublishedCount = Object.values(publishedRoleMinimums).reduce((sum, n) => sum + n, 0);
   const effectiveMax = Math.max(max, requiredPublishedCount || 0);
@@ -3595,6 +3636,11 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
       if (!sessionSeeking.includes("topliner")) return true;
       if (!toplinerSubfilters.length) return true;
       return toplinerSubfilters.some((filter) => writerMatchesToplinerSubfilter(writer, filter));
+    })
+    .filter((writer) => {
+      if (!sessionSeeking.includes("producer")) return true;
+      if (!producerSubfilters.length) return true;
+      return producerSubfilters.some((filter) => writerMatchesProducerSubfilter(writer, filter));
     })
     .map((writer) => {
       const parts = getTagMatchParts(writer, session);
@@ -3709,6 +3755,12 @@ const writerMatchesToplinerSubfilter = (writer, filter) => {
   const tags = writer.tags || [];
   const candidates = TOPLINER_SUBFILTER_EQUIVALENTS[normalized] || [normalized];
   return candidates.some((candidate) => tags.some((tag) => tagMatchesQuery(tag, candidate)));
+};
+
+const writerMatchesProducerSubfilter = (writer, filter) => {
+  const normalized = canonicalizeRole(filter);
+  if (!normalized) return false;
+  return writerMatchesSeekingRole(writer, normalized);
 };
 
 const buildCandidateNode = (entry, index, availabilityByWriterId) => {
@@ -4275,6 +4327,7 @@ sessionForm.addEventListener("submit", async (event) => {
   const brief = document.getElementById("session-title").value.trim();
   const seeking = getSelectedSeeking();
   const toplinerSubfilters = getSelectedToplinerSubfilters();
+  const producerSubfilters = getSelectedProducerSubfilters();
   const location = document.getElementById("session-location").value.trim().toLowerCase();
   const scheduleMode = scheduleModeInput.value;
   const specificDate = sessionDateSpecificInput.value;
@@ -4342,6 +4395,7 @@ sessionForm.addEventListener("submit", async (event) => {
     publishedOnly,
     publishedRoleMinimums,
     toplinerSubfilters,
+    producerSubfilters,
     requiredTags,
     priorityTags: [],
     schedule: {
@@ -4484,6 +4538,7 @@ seekingInputs.forEach((input) => {
   input.addEventListener("change", () => {
     syncSessionSeekingPills();
     syncToplinerOptionsUi();
+    syncProducerOptionsUi();
     syncPublishedRosterSlotsUi();
   });
 });
@@ -4534,6 +4589,7 @@ refreshSessionBriefButton.addEventListener("click", () => {
   setScheduleModeUi();
   syncSessionSeekingPills();
   syncToplinerOptionsUi();
+  syncProducerOptionsUi();
   syncPublishedRosterSlotsUi();
   activeCandidateFilterKey = "";
   sessionStatus.textContent = "";
@@ -4819,6 +4875,7 @@ if (briefList) {
       });
       syncSessionSeekingPills();
       syncToplinerOptionsUi();
+      syncProducerOptionsUi();
       syncPublishedRosterSlotsUi();
       selectedBriefForSessionId = brief.id;
       setNewPairingOpen(true);
@@ -5233,6 +5290,7 @@ bindDateInputOpenOnClick(sessionDateStartInput);
 bindDateInputOpenOnClick(sessionDateEndInput);
 syncSessionSeekingPills();
 syncToplinerOptionsUi();
+syncProducerOptionsUi();
 syncPublishedRosterSlotsUi();
 setCalendarMenuOpen(false);
 setCalendarEventsViewMode("list");
