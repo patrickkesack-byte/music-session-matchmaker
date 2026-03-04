@@ -300,6 +300,41 @@ const DIRECT_TAG_MAP = new Set([
   "afrobeat",
 ]);
 
+const BIO_GENRE_KEYWORD_TAG_MAP = [
+  { pattern: /hip[\s-]?hop|trap|drill|rap\b/, tags: ["hip-hop", "rap"] },
+  { pattern: /r&b|rnb|rhythm and blues|soul/, tags: ["r&b"] },
+  { pattern: /dance[\s-]?pop/, tags: ["dance pop", "pop", "dance"] },
+  { pattern: /\bpop\b|top ?40|radio pop/, tags: ["pop"] },
+  { pattern: /house|tech ?house/, tags: ["house"] },
+  { pattern: /techno/, tags: ["techno"] },
+  { pattern: /trance/, tags: ["trance"] },
+  { pattern: /edm|electronic|festival/, tags: ["edm", "electronic"] },
+  { pattern: /indie|alternative/, tags: ["indie"] },
+  { pattern: /k[\s-]?pop/, tags: ["kpop"] },
+  { pattern: /country/, tags: ["country"] },
+  { pattern: /latin|reggaeton/, tags: ["latin"] },
+  { pattern: /afrobeat|afrobeats|afro/, tags: ["afrobeat", "afro"] },
+];
+
+const CREDIT_ARTIST_GENRE_TAG_MAP = [
+  ["2 chainz", ["hip-hop", "rap"]],
+  ["drake", ["hip-hop", "rap"]],
+  ["migos", ["hip-hop", "rap"]],
+  ["lil yachty", ["hip-hop", "rap"]],
+  ["travis scott", ["hip-hop", "rap"]],
+  ["future", ["hip-hop", "rap"]],
+  ["megan thee stallion", ["hip-hop", "rap"]],
+  ["dua lipa", ["pop", "dance pop"]],
+  ["charli xcx", ["pop", "dance pop"]],
+  ["beyonce", ["pop", "r&b"]],
+  ["rihanna", ["pop", "r&b"]],
+  ["tiesto", ["edm", "dance"]],
+  ["meduza", ["edm", "dance", "house"]],
+  ["kaskade", ["edm", "dance", "house"]],
+  ["martin garrix", ["edm", "dance"]],
+  ["gryffin", ["edm", "dance pop"]],
+];
+
 const normalizeList = (text) =>
   String(text || "")
     .split(",")
@@ -313,6 +348,35 @@ const normalizeTagField = (text) =>
     .filter(Boolean);
 
 const unique = (arr) => Array.from(new Set(arr));
+
+const normalizeTagsArray = (tags) =>
+  unique(
+    (Array.isArray(tags) ? tags : [])
+      .map((tag) => String(tag || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+const deriveGenreTagsFromBio = (bio) => {
+  const raw = String(bio || "").toLowerCase();
+  if (!raw.trim()) return [];
+  const normalized = ` ${normalizeLocationText(raw)} `;
+  const tags = new Set();
+
+  BIO_GENRE_KEYWORD_TAG_MAP.forEach(({ pattern, tags: inferred }) => {
+    if (pattern.test(raw)) inferred.forEach((tag) => tags.add(tag));
+  });
+
+  CREDIT_ARTIST_GENRE_TAG_MAP.forEach(([artist, inferred]) => {
+    const needle = ` ${normalizeLocationText(artist)} `;
+    if (!needle.trim()) return;
+    if (normalized.includes(needle)) inferred.forEach((tag) => tags.add(tag));
+  });
+
+  return Array.from(tags);
+};
+
+const mergeWriterTagsWithBioGenres = (tags, bio) =>
+  unique([...normalizeTagsArray(tags), ...deriveGenreTagsFromBio(bio)]);
 
 const SEEKING_OPTIONS = [
   "topliner",
@@ -775,10 +839,12 @@ const setWriterCalendarProviderUi = () => {
 const normalizeSongwriterRecord = (writer) => {
   const createdAt = Number(writer?.createdAt) || Date.now();
   const updatedAt = Number(writer?.updatedAt) || createdAt;
+  const tags = mergeWriterTagsWithBioGenres(writer?.tags, writer?.bio);
   return {
     ...writer,
     createdAt,
     updatedAt,
+    tags,
   };
 };
 
