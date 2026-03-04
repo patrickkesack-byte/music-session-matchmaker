@@ -527,6 +527,9 @@ const normalizeProducerSubfilters = (values) =>
 const ROLE_SEARCH_EQUIVALENTS = {
   topliner: ["topliner", "singer"],
   singer: ["singer", "topliner"],
+  producer: ["producer", "co-producer"],
+  artist: ["artist"],
+  "co-writer": ["co-writer", "writer"],
 };
 
 const normalizeCalendarIds = (text) =>
@@ -2965,9 +2968,14 @@ const parseAiPairingPrompt = async (prompt) => {
 };
 
 const applyAiPairingParse = (prompt, parsed) => {
+  const promptNorm = normalizeTagMatchText(prompt);
   const nextSeeking = new Set(normalizeRoles(parsed?.seeking || []));
   const nextTopliner = new Set(normalizeToplinerSubfilters(parsed?.toplinerOptions || []));
   const nextProducer = new Set(normalizeProducerSubfilters(parsed?.producerOptions || []));
+  const allowProducerMulti =
+    promptNorm.includes("multi instrumentalist") ||
+    promptNorm.includes("multi-instrumentalist");
+  if (!allowProducerMulti) nextProducer.clear();
   const scheduleMode = ["anytime", "specific", "range"].includes(parsed?.scheduleMode) ? parsed.scheduleMode : "anytime";
   const publishedScope = String(parsed?.publishedScope || "all").toLowerCase();
 
