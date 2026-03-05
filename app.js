@@ -1126,6 +1126,11 @@ const loadSessions = () => {
       changed = true;
       next = { ...next, publishedRoleMinimums: normalizedPublishedRoleMinimums };
     }
+    const normalizedRoleIntentClauses = normalizeRoleIntentClauses(next.roleIntentClauses || []);
+    if (JSON.stringify(normalizedRoleIntentClauses) !== JSON.stringify(next.roleIntentClauses || [])) {
+      changed = true;
+      next = { ...next, roleIntentClauses: normalizedRoleIntentClauses };
+    }
     const normalizedStrictIntentTags = Array.from(
       new Set(
         (Array.isArray(next.strictIntentTags) ? next.strictIntentTags : [])
@@ -2921,6 +2926,102 @@ const extractStrictIntentTags = (prompt) => {
   return Array.from(strict);
 };
 
+const ROLE_INTENT_PATTERNS = [
+  { role: "topliner", pattern: /\btopliner(s)?\b|\bsinger(s)?\b/i },
+  { role: "producer", pattern: /\bproducer(s)?\b|\bco[-\s]?producer(s)?\b/i },
+  { role: "artist", pattern: /\bartist(s)?\b/i },
+  { role: "co-writer", pattern: /\bco[-\s]?writer(s)?\b|\bwriter(s)?\b/i },
+];
+
+const extractRoleFromClause = (clauseText) => {
+  const clause = String(clauseText || "");
+  for (const def of ROLE_INTENT_PATTERNS) {
+    if (def.pattern.test(clause)) return def.role;
+  }
+  return "";
+};
+
+const normalizeRoleIntentClauses = (clauses) => {
+  if (!Array.isArray(clauses)) return [];
+  const out = [];
+  clauses.forEach((clause) => {
+    const role = canonicalizeRole(clause?.role || "");
+    if (!SEEKING_OPTIONS.includes(role)) return;
+    const tags = Array.from(
+      new Set(
+        (Array.isArray(clause?.tags) ? clause.tags : [])
+          .map((tag) => normalizeStrictIntentTag(tag))
+          .filter(Boolean)
+      )
+    );
+    const existing = out.find((x) => x.role === role && JSON.stringify(x.tags) === JSON.stringify(tags));
+    if (!existing) out.push({ role, tags });
+  });
+  return out;
+};
+
+const extractRoleIntentClauses = (prompt) => {
+  const text = String(prompt || "").trim();
+  if (!text) return [];
+  const parts = text
+    .split(/\s+(?:and|&)\s+/i)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  if (parts.length < 2) return [];
+
+  const clauses = parts
+    .map((part) => {
+      const role = extractRoleFromClause(part);
+      if (!role) return null;
+      return {
+        role,
+        tags: extractStrictIntentTags(part),
+      };
+    })
+    .filter(Boolean);
+
+  return normalizeRoleIntentClauses(clauses);
+};
+
+const getStrictIntentTagCandidates = (tag) => {
+  const normalized = normalizeStrictIntentTag(tag);
+  if (!normalized) return [];
+  if (normalized === "rap") return ["rap", "hip-hop", "hip hop", "trap", "drill"];
+  if (normalized === "hip-hop") return ["hip-hop", "hip hop", "rap", "trap", "drill"];
+  if (normalized === "electronic") return ["electronic", "edm", "dance", "house", "techno", "trance"];
+  if (normalized === "r&b") return ["r&b", "rnb"];
+  if (normalized === "kpop") return ["kpop", "k-pop"];
+  return [normalized];
+};
+
+const writerMatchesStrictIntentTag = (writer, strictTag) => {
+  const tags = (writer.tags || []).map((tag) => normalizeTagMatchText(tag)).filter(Boolean);
+  const candidates = getStrictIntentTagCandidates(strictTag);
+  if (!candidates.length) return true;
+  return candidates.some((candidate) => tags.some((tag) => tagMatchesQuery(tag, candidate)));
+};
+
+const roleIntentClauseMatchesWriter = (writer, clause) => {
+  if (!clause || !clause.role) return false;
+  if (!writerMatchesSeekingRole(writer, clause.role)) return false;
+  const tags = Array.isArray(clause.tags) ? clause.tags : [];
+  if (!tags.length) return true;
+  return tags.every((tag) => writerMatchesStrictIntentTag(writer, tag));
+};
+
+const roleIntentClauseTitle = (clause) => {
+  const roleLabelMap = {
+    topliner: "Topliners",
+    producer: "Producers",
+    artist: "Artists",
+    "co-writer": "Co-Writers",
+  };
+  const roleLabel = roleLabelMap[clause?.role] || formatLocationLabel(clause?.role || "Matches");
+  const tags = (Array.isArray(clause?.tags) ? clause.tags : []).map((tag) => formatLocationLabel(tag));
+  if (!tags.length) return roleLabel;
+  return `${tags.join(" + ")} ${roleLabel}`;
+};
+
 const getSelectedSeeking = () =>
   normalizeRoles(
     seekingInputs
@@ -3902,6 +4003,7 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
   const sessionSeeking = normalizeRoles(session.seeking || []);
   const toplinerSubfilters = normalizeToplinerSubfilters(session.toplinerSubfilters || []);
   const producerSubfilters = normalizeProducerSubfilters(session.producerSubfilters || []);
+  const roleIntentClauses = normalizeRoleIntentClauses(session.roleIntentClauses || []);
   const strictIntentTags = Array.from(
     new Set(
       (Array.isArray(session.strictIntentTags) ? session.strictIntentTags : [])
@@ -3909,22 +4011,6 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
         .filter(Boolean)
     )
   );
-  const strictIntentCandidates = (tag) => {
-    const normalized = normalizeStrictIntentTag(tag);
-    if (!normalized) return [];
-    if (normalized === "rap") return ["rap", "hip-hop", "hip hop", "trap", "drill"];
-    if (normalized === "hip-hop") return ["hip-hop", "hip hop", "rap", "trap", "drill"];
-    if (normalized === "electronic") return ["electronic", "edm", "dance", "house", "techno", "trance"];
-    if (normalized === "r&b") return ["r&b", "rnb"];
-    if (normalized === "kpop") return ["kpop", "k-pop"];
-    return [normalized];
-  };
-  const writerMatchesStrictIntentTag = (writer, strictTag) => {
-    const tags = (writer.tags || []).map((tag) => normalizeTagMatchText(tag)).filter(Boolean);
-    const candidates = strictIntentCandidates(strictTag);
-    if (!candidates.length) return true;
-    return candidates.some((candidate) => tags.some((tag) => tagMatchesQuery(tag, candidate)));
-  };
   const publishedRoleMinimums = normalizePublishedRoleMinimums(session.publishedRoleMinimums);
   const requiredPublishedCount = Object.values(publishedRoleMinimums).reduce((sum, n) => sum + n, 0);
   const effectiveMax = Math.max(max, requiredPublishedCount || 0);
@@ -3962,6 +4048,9 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
       return producerSubfilters.some((filter) => writerMatchesProducerSubfilter(writer, filter));
     })
     .filter((writer) => {
+      if (roleIntentClauses.length) {
+        return roleIntentClauses.some((clause) => roleIntentClauseMatchesWriter(writer, clause));
+      }
       if (!strictIntentTags.length) return true;
       return strictIntentTags.every((tag) => writerMatchesStrictIntentTag(writer, tag));
     })
@@ -4198,28 +4287,34 @@ const renderLatestSessionResult = async () => {
     activeCandidateFilterKey = "";
   } else {
     const seekingRoles = normalizeRoles(latest.seeking || []);
-    if (seekingRoles.length >= 2) {
-      const allRolesMatches = candidates.filter((entry) =>
-        seekingRoles.every((role) => writerMatchesSeekingRole(entry.writer, role))
-      );
-      const combinedTitle =
-        seekingRoles.length === 2
-          ? `${formatLocationLabel(seekingRoles[0])} + ${formatLocationLabel(seekingRoles[1])}`
-          : "All selected roles";
-      const groups = [
-        {
-          key: "all-selected-seeking",
-          title: combinedTitle,
-          entries: allRolesMatches,
-          empty: "No writers match all selected roles.",
-        },
-        ...seekingRoles.map((role) => ({
-          key: `role:${role}`,
-          title: formatLocationLabel(role),
-          entries: candidates.filter((entry) => writerMatchesSeekingRole(entry.writer, role)),
-          empty: `No ${role} matches.`,
-        })),
-      ];
+    const roleIntentClauses = normalizeRoleIntentClauses(latest.roleIntentClauses || []);
+    if (roleIntentClauses.length >= 2 || seekingRoles.length >= 2) {
+      const groups = roleIntentClauses.length
+        ? roleIntentClauses.map((clause, idx) => ({
+            key: `clause:${clause.role}:${idx}`,
+            title: roleIntentClauseTitle(clause),
+            entries: candidates.filter((entry) => roleIntentClauseMatchesWriter(entry.writer, clause)),
+            empty: `No matches for ${roleIntentClauseTitle(clause)}.`,
+          }))
+        : [
+            {
+              key: "all-selected-seeking",
+              title:
+                seekingRoles.length === 2
+                  ? `${formatLocationLabel(seekingRoles[0])} + ${formatLocationLabel(seekingRoles[1])}`
+                  : "All selected roles",
+              entries: candidates.filter((entry) =>
+                seekingRoles.every((role) => writerMatchesSeekingRole(entry.writer, role))
+              ),
+              empty: "No writers match all selected roles.",
+            },
+            ...seekingRoles.map((role) => ({
+              key: `role:${role}`,
+              title: formatLocationLabel(role),
+              entries: candidates.filter((entry) => writerMatchesSeekingRole(entry.writer, role)),
+              empty: `No ${role} matches.`,
+            })),
+          ];
       const filterBar = document.createElement("div");
       filterBar.className = "candidate-filter-bar";
       const list = document.createElement("div");
@@ -4723,6 +4818,7 @@ sessionForm.addEventListener("submit", async (event) => {
 
   const directionTags = extractTagsFromBrief(brief);
   const strictIntentTags = extractStrictIntentTags(pairingPrompt);
+  const roleIntentClauses = extractRoleIntentClauses(pairingPrompt);
   const requiredTags = ensureLocationTag(unique([...directionTags]), location);
 
   const session = {
@@ -4737,6 +4833,7 @@ sessionForm.addEventListener("submit", async (event) => {
     publishedRoleMinimums,
     toplinerSubfilters,
     producerSubfilters,
+    roleIntentClauses,
     strictIntentTags,
     requiredTags,
     priorityTags: [],
