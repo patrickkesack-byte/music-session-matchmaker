@@ -897,7 +897,7 @@ const setBulkImportOpen = (isOpen) => {
 };
 
 const setSongwriterSection = (section) => {
-  const nextSection = ["add", "bulk", "list"].includes(section) ? section : "add";
+  const nextSection = ["add", "bulk", "list"].includes(section) ? section : "";
   activeSongwriterSection = nextSection;
 
   if (toggleAddSongwriterButton) toggleAddSongwriterButton.classList.toggle("active", nextSection === "add");
@@ -5391,7 +5391,7 @@ if (authLogoutButton) {
 
 if (toggleAllSongwritersButton) {
   toggleAllSongwritersButton.addEventListener("click", () => {
-    setSongwriterSection("list");
+    setSongwriterSection(activeSongwriterSection === "list" ? "" : "list");
   });
 }
 
@@ -5790,13 +5790,13 @@ if (toggleAddSongwriterButton) {
     if (activeSongwriterSection !== "add" && editingSongwriterId) {
       resetSongwriterForm();
     }
-    setSongwriterSection("add");
+    setSongwriterSection(activeSongwriterSection === "add" ? "" : "add");
   });
 }
 
 if (toggleBulkImportButton) {
   toggleBulkImportButton.addEventListener("click", () => {
-    setSongwriterSection("bulk");
+    setSongwriterSection(activeSongwriterSection === "bulk" ? "" : "bulk");
   });
 }
 
@@ -5944,7 +5944,7 @@ if (calendarMenuToggleButton && calendarMenuPanel) {
 
 setSongwriterFormMode(false);
 setNewPairingOpen(false);
-setSongwriterSection("add");
+setSongwriterSection("");
 setAddBriefOpen(false);
 hydrateGoogleSettingsUi();
 hydrateSharedSettingsUi();
