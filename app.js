@@ -1103,6 +1103,29 @@ const loadSessions = () => {
       changed = true;
       next = { ...next, candidateWriterIds: [] };
     }
+    const schedule = next.schedule && typeof next.schedule === "object" ? next.schedule : {};
+    const tw = schedule.requestedTimeWindow;
+    const hasValidTimeWindow =
+      tw &&
+      typeof tw === "object" &&
+      Number.isFinite(Number.parseInt(String(tw.startMinute), 10)) &&
+      Number.isFinite(Number.parseInt(String(tw.endMinute), 10));
+    if (!("requestedTimeWindow" in schedule) || (tw && !hasValidTimeWindow)) {
+      changed = true;
+      next = {
+        ...next,
+        schedule: {
+          ...schedule,
+          requestedTimeWindow: hasValidTimeWindow
+            ? {
+                startMinute: Number.parseInt(String(tw.startMinute), 10),
+                endMinute: Number.parseInt(String(tw.endMinute), 10),
+                source: String(tw.source || "prompt"),
+              }
+            : null,
+        },
+      };
+    }
     if (typeof next.includePublished !== "boolean") {
       changed = true;
       next = { ...next, includePublished: false };
@@ -2522,9 +2545,24 @@ const getModeSlots = (schedule) => {
 
 const getSessionDayWindow = (dayStart) => {
   const start = new Date(dayStart);
-  start.setHours(11, 0, 0, 0);
   const end = new Date(dayStart);
+  start.setHours(11, 0, 0, 0);
   end.setHours(23, 0, 0, 0);
+  return { start, end };
+};
+
+const getSessionWindowForSlot = (slotStart, schedule) => {
+  const fallback = getSessionDayWindow(slotStart);
+  const window = schedule?.requestedTimeWindow;
+  if (!window || typeof window !== "object") return fallback;
+  const startMinute = Number.parseInt(String(window.startMinute), 10);
+  const endMinute = Number.parseInt(String(window.endMinute), 10);
+  if (!Number.isFinite(startMinute) || !Number.isFinite(endMinute)) return fallback;
+  if (startMinute < 0 || endMinute > 24 * 60 || endMinute <= startMinute) return fallback;
+  const start = new Date(slotStart);
+  const end = new Date(slotStart);
+  start.setHours(Math.floor(startMinute / 60), startMinute % 60, 0, 0);
+  end.setHours(Math.floor(endMinute / 60), endMinute % 60, 0, 0);
   return { start, end };
 };
 
@@ -2545,7 +2583,7 @@ const getGoogleAvailabilityForWriter = async (writer, schedule, studioCalendarId
   const availableSlots = [];
 
   for (const slot of slots) {
-    const dayWindow = getSessionDayWindow(slot.start);
+    const dayWindow = getSessionWindowForSlot(slot.start, schedule);
     const data = await fetchFreeBusy(calendarIds, dayWindow.start.toISOString(), dayWindow.end.toISOString());
     const calendars = data.calendars || {};
     const allFree = calendarIds.every((id) => Array.isArray(calendars[id]?.busy) && calendars[id].busy.length === 0);
@@ -2596,7 +2634,7 @@ const getIcloudAvailabilityForWriter = async (writer, schedule, studioCalendarId
   const availableSlots = [];
 
   for (const slot of slots) {
-    const dayWindow = getSessionDayWindow(slot.start);
+    const dayWindow = getSessionWindowForSlot(slot.start, schedule);
     const writerBusy = busyEvents.some((evt) => overlaps(evt.start, evt.end, dayWindow.start, dayWindow.end));
     if (writerBusy) continue;
     availableSlots.push(slot);
@@ -3001,6 +3039,49 @@ const extractRoleIntentClauses = (prompt) => {
     .filter(Boolean);
 
   return normalizeRoleIntentClauses(clauses);
+};
+
+const parseTimeTokenToMinutes = (hourText, minuteText, meridiemText) => {
+  let hour = Number.parseInt(String(hourText || ""), 10);
+  const minute = Number.parseInt(String(minuteText || "0"), 10);
+  const meridiem = String(meridiemText || "").toLowerCase();
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+  if (meridiem === "am") {
+    if (hour === 12) hour = 0;
+  } else if (meridiem === "pm") {
+    if (hour !== 12) hour += 12;
+  } else {
+    return null;
+  }
+  return hour * 60 + minute;
+};
+
+const extractPromptTimeWindow = (prompt) => {
+  const text = String(prompt || "").toLowerCase();
+  if (!text) return null;
+
+  const rangeMatch = text.match(
+    /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*(?:to|-|–)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/
+  );
+  if (rangeMatch) {
+    const start = parseTimeTokenToMinutes(rangeMatch[1], rangeMatch[2], rangeMatch[3]);
+    const end = parseTimeTokenToMinutes(rangeMatch[4], rangeMatch[5], rangeMatch[6]);
+    if (start !== null && end !== null && end > start) {
+      return { startMinute: start, endMinute: end, source: "prompt-range" };
+    }
+  }
+
+  const singleMatch = text.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/);
+  if (singleMatch) {
+    const start = parseTimeTokenToMinutes(singleMatch[1], singleMatch[2], singleMatch[3]);
+    if (start !== null) {
+      const end = Math.min(start + 60, 24 * 60);
+      return { startMinute: start, endMinute: end, source: "prompt-single" };
+    }
+  }
+
+  return null;
 };
 
 const getStrictIntentTagCandidates = (tag) => {
@@ -4849,6 +4930,7 @@ sessionForm.addEventListener("submit", async (event) => {
   const directionTags = extractTagsFromBrief(brief);
   const strictIntentTags = extractStrictIntentTags(pairingPrompt);
   const roleIntentClauses = extractRoleIntentClauses(pairingPrompt);
+  const requestedTimeWindow = extractPromptTimeWindow(pairingPrompt);
   const requiredTags = ensureLocationTag(unique([...directionTags]), location);
 
   const session = {
@@ -4873,6 +4955,7 @@ sessionForm.addEventListener("submit", async (event) => {
       startDate: scheduleMode === "specific" ? specificDate : startDate,
       endDate: scheduleMode === "specific" ? specificDate : endDate,
       allowWeekends: false,
+      requestedTimeWindow: requestedTimeWindow || null,
     },
     status: PAIRING_STATUS.pending,
     approvalNotes: "",
