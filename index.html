@@ -66,7 +66,6 @@
         <div class="card">
           <form id="session-form">
             <label>
-              Pairing Prompt
               <input
                 type="text"
                 id="ai-pairing-prompt"
@@ -230,9 +229,15 @@
           <p id="songwriter-status" class="status"></p>
         </div>
 
-        <div class="card">
-          <button id="toggle-add-songwriter" type="button" class="ghost section-toggle">Add Songwriter</button>
-          <form id="songwriter-form" class="hidden">
+        <div class="card songwriter-sections-card">
+          <div class="songwriter-sections-tabs" role="tablist" aria-label="Songwriter tools">
+            <button id="toggle-add-songwriter" type="button" class="ghost section-toggle active" data-section="add">Add Songwriter</button>
+            <button id="toggle-bulk-import" type="button" class="ghost section-toggle" data-section="bulk">Bulk Import/Export</button>
+            <button id="toggle-all-songwriters" type="button" class="ghost section-toggle" data-section="list">View All Songwriters</button>
+          </div>
+
+          <div id="songwriter-section-add" class="songwriter-section-panel">
+            <form id="songwriter-form">
             <label>
               Writer Name
               <input type="text" id="writer-name" required placeholder="Avery Lane" />
@@ -301,12 +306,11 @@
               <button id="save-songwriter" type="submit">Add Songwriter</button>
               <button id="cancel-edit" type="button" class="ghost hidden">Cancel Edit</button>
             </div>
-          </form>
-        </div>
+            </form>
+          </div>
 
-        <div class="card">
-          <button id="toggle-bulk-import" type="button" class="ghost section-toggle">Bulk Import/Export</button>
-          <div id="bulk-import-tools" class="inline-tools hidden">
+          <div id="songwriter-section-bulk" class="songwriter-section-panel hidden">
+            <div id="bulk-import-tools" class="inline-tools">
             <a class="ghost link-button" href="./songwriter_import_template.csv" download>Download CSV Template</a>
             <div class="csv-picker">
               <button id="choose-songwriter-csv" type="button" class="ghost">Choose File</button>
@@ -316,11 +320,11 @@
             <button id="export-songwriters" type="button" class="ghost">Bulk Export</button>
             <button id="import-songwriters" type="button" class="ghost">Bulk Import</button>
           </div>
-        </div>
+          </div>
 
-        <div class="card">
-          <button id="toggle-all-songwriters" type="button" class="ghost">View All Songwriters</button>
-          <div id="songwriter-list" class="songwriter-list"></div>
+          <div id="songwriter-section-list" class="songwriter-section-panel hidden">
+            <div id="songwriter-list" class="songwriter-list"></div>
+          </div>
         </div>
       </section>
 
