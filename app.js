@@ -2936,6 +2936,7 @@ const ROLE_INTENT_PATTERNS = [
 const extractRoleFromClause = (clauseText) => {
   const clause = String(clauseText || "");
   const normalized = normalizeTagMatchText(clause);
+  if (/\bpublished\b/i.test(clause) && /\bwriter(s)?\b/i.test(clause)) return "__published__";
   if (/\brapper(s)?\b/i.test(clause) || /\bspoken[-\s]?word\b/i.test(clause)) return "topliner";
   for (const def of ROLE_INTENT_PATTERNS) {
     if (def.pattern.test(clause)) return def.role;
@@ -2949,7 +2950,7 @@ const normalizeRoleIntentClauses = (clauses) => {
   const out = [];
   clauses.forEach((clause) => {
     const role = canonicalizeRole(clause?.role || "");
-    if (!SEEKING_OPTIONS.includes(role)) return;
+    if (!SEEKING_OPTIONS.includes(role) && role !== "__published__") return;
     const tags = Array.from(
       new Set(
         (Array.isArray(clause?.tags) ? clause.tags : [])
@@ -3012,6 +3013,7 @@ const writerMatchesStrictIntentTag = (writer, strictTag) => {
 
 const roleIntentClauseMatchesWriter = (writer, clause) => {
   if (!clause || !clause.role) return false;
+  if (clause.role === "__published__") return Boolean(writer?.published);
   if (!writerMatchesSeekingRole(writer, clause.role)) return false;
   const tags = Array.isArray(clause.tags) ? clause.tags : [];
   if (!tags.length) return true;
@@ -3020,6 +3022,7 @@ const roleIntentClauseMatchesWriter = (writer, clause) => {
 
 const roleIntentClauseTitle = (clause) => {
   const roleLabelMap = {
+    "__published__": "Published Writers",
     topliner: "Topliners",
     producer: "Producers",
     artist: "Artists",
@@ -4046,15 +4049,18 @@ const getTopCandidates = (session, songwriters, max = Number.POSITIVE_INFINITY) 
     .filter((writer) => (session.publishedOnly ? writer.published : true))
     .filter((writer) => writerMatchesSessionLocation(writer, session.location))
     .filter((writer) => {
+      if (roleIntentClauses.length) return true;
       if (!sessionSeeking.length) return true;
       return sessionSeeking.some((role) => writerMatchesSeekingRole(writer, role));
     })
     .filter((writer) => {
+      if (roleIntentClauses.length) return true;
       if (!sessionSeeking.includes("topliner")) return true;
       if (!toplinerSubfilters.length) return true;
       return toplinerSubfilters.some((filter) => writerMatchesToplinerSubfilter(writer, filter));
     })
     .filter((writer) => {
+      if (roleIntentClauses.length) return true;
       if (!sessionSeeking.includes("producer")) return true;
       if (!producerSubfilters.length) return true;
       return producerSubfilters.some((filter) => writerMatchesProducerSubfilter(writer, filter));
