@@ -2935,9 +2935,12 @@ const ROLE_INTENT_PATTERNS = [
 
 const extractRoleFromClause = (clauseText) => {
   const clause = String(clauseText || "");
+  const normalized = normalizeTagMatchText(clause);
+  if (/\brapper(s)?\b/i.test(clause) || /\bspoken[-\s]?word\b/i.test(clause)) return "topliner";
   for (const def of ROLE_INTENT_PATTERNS) {
     if (def.pattern.test(clause)) return def.role;
   }
+  if (normalized.includes("male singer") || normalized.includes("female singer")) return "topliner";
   return "";
 };
 
@@ -2973,9 +2976,15 @@ const extractRoleIntentClauses = (prompt) => {
     .map((part) => {
       const role = extractRoleFromClause(part);
       if (!role) return null;
+      const clauseTags = new Set(extractStrictIntentTags(part));
+      const normalizedPart = normalizeTagMatchText(part);
+      if (/\brapper(s)?\b/i.test(part) && !clauseTags.has("rap")) clauseTags.add("rap");
+      if (/\bspoken[-\s]?word\b/i.test(part) && !clauseTags.has("spoken-word")) clauseTags.add("spoken-word");
+      if (normalizedPart.includes("male singer")) clauseTags.add("male singer");
+      if (normalizedPart.includes("female singer")) clauseTags.add("female singer");
       return {
         role,
-        tags: extractStrictIntentTags(part),
+        tags: Array.from(clauseTags),
       };
     })
     .filter(Boolean);
@@ -3018,6 +3027,9 @@ const roleIntentClauseTitle = (clause) => {
   };
   const roleLabel = roleLabelMap[clause?.role] || formatLocationLabel(clause?.role || "Matches");
   const tags = (Array.isArray(clause?.tags) ? clause.tags : []).map((tag) => formatLocationLabel(tag));
+  if (clause?.role === "topliner" && tags.length === 1 && (tags[0] === "Rap" || tags[0] === "Spoken Word")) {
+    return `${tags[0]} ${roleLabel}`;
+  }
   if (!tags.length) return roleLabel;
   return `${tags.join(" + ")} ${roleLabel}`;
 };
