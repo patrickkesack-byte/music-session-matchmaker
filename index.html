@@ -213,7 +213,11 @@
           <div id="report-panel" class="report-panel hidden">
             <p class="hint">Pairing Report</p>
             <pre id="report-output"></pre>
-            <a id="download-report" class="ghost link-button" href="#" download="pairing-report.txt">Download Report</a>
+            <div class="form-actions">
+              <button id="copy-report" type="button" class="ghost">Copy Report</button>
+              <a id="download-report" class="ghost link-button" href="#" download="pairing-report.txt">Download Report</a>
+            </div>
+            <p id="report-copy-status" class="status"></p>
           </div>
         </div>
 

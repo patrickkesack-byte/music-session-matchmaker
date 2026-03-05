@@ -146,7 +146,9 @@ const writerCalendarStatus = document.getElementById("writer-calendar-status");
 
 const reportPanel = document.getElementById("report-panel");
 const reportOutput = document.getElementById("report-output");
+const copyReportButton = document.getElementById("copy-report");
 const downloadReportLink = document.getElementById("download-report");
+const reportCopyStatus = document.getElementById("report-copy-status");
 
 const sessionTemplate = document.getElementById("session-template");
 const candidateTemplate = document.getElementById("candidate-template");
@@ -4582,7 +4584,35 @@ const generateLatestPairingReport = () => {
   const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
   downloadReportLink.href = URL.createObjectURL(blob);
   downloadReportLink.download = `pairing-report-${Date.now()}.txt`;
+  if (reportCopyStatus) reportCopyStatus.textContent = "";
   return true;
+};
+
+const copyTextToClipboard = async (text) => {
+  const content = String(text || "");
+  if (!content) return false;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(content);
+      return true;
+    }
+  } catch (_error) {
+    // Fallback below.
+  }
+
+  const helper = document.createElement("textarea");
+  helper.value = content;
+  helper.setAttribute("readonly", "readonly");
+  helper.style.position = "fixed";
+  helper.style.top = "-9999px";
+  helper.style.left = "-9999px";
+  document.body.appendChild(helper);
+  helper.focus();
+  helper.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(helper);
+  return Boolean(ok);
 };
 
 const upsertScheduleRequest = (sessionId, writerId) => {
@@ -5130,6 +5160,21 @@ generateReportButton.addEventListener("click", () => {
   generateLatestPairingReport();
 });
 
+if (copyReportButton) {
+  copyReportButton.addEventListener("click", async () => {
+    const reportText = reportOutput?.textContent || "";
+    if (!reportText.trim()) {
+      if (reportCopyStatus) reportCopyStatus.textContent = "No report to copy.";
+      return;
+    }
+
+    const copied = await copyTextToClipboard(reportText);
+    if (reportCopyStatus) {
+      reportCopyStatus.textContent = copied ? "Report copied." : "Unable to copy report.";
+    }
+  });
+}
+
 seekingInputs.forEach((input) => {
   input.addEventListener("change", () => {
     syncSessionSeekingPills();
@@ -5174,6 +5219,7 @@ refreshPairingButton.addEventListener("click", () => {
   reportPanel.classList.add("hidden");
   reportOutput.textContent = "";
   downloadReportLink.href = "#";
+  if (reportCopyStatus) reportCopyStatus.textContent = "";
   generateReportButton.disabled = true;
   renderLatestSessionResult();
   renderOpenPairings();
@@ -5192,6 +5238,7 @@ refreshSessionBriefButton.addEventListener("click", () => {
   selectedPairingWriterIds = new Set();
   sessionStatus.textContent = "";
   if (sessionLocationStatus) sessionLocationStatus.textContent = "";
+  if (reportCopyStatus) reportCopyStatus.textContent = "";
   hydrateGoogleSettingsUi();
 });
 
