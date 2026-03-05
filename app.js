@@ -525,11 +525,11 @@ const normalizeProducerSubfilters = (values) =>
   );
 
 const ROLE_SEARCH_EQUIVALENTS = {
-  topliner: ["topliner", "singer"],
-  singer: ["singer", "topliner"],
+  topliner: ["topliner", "singer", "co-writer", "writer", "songwriter"],
+  singer: ["singer", "topliner", "co-writer", "writer", "songwriter"],
   producer: ["producer", "co-producer"],
   artist: ["artist"],
-  "co-writer": ["co-writer", "writer"],
+  "co-writer": ["co-writer", "writer", "songwriter", "topliner", "singer"],
 };
 
 const normalizeCalendarIds = (text) =>
