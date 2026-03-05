@@ -62,6 +62,12 @@ const calendarWriterList = document.getElementById("calendar-writer-list");
 const calendarEventsList = document.getElementById("calendar-events-list");
 const calendarEventsStatus = document.getElementById("calendar-events-status");
 const calendarEventsTitle = document.getElementById("calendar-events-title");
+const calendarSectionWritersButton = document.getElementById("calendar-section-writers");
+const calendarSectionSearchButton = document.getElementById("calendar-section-search");
+const calendarSectionSettingsButton = document.getElementById("calendar-section-settings");
+const calendarPanelWriters = document.getElementById("calendar-panel-writers");
+const calendarPanelSearch = document.getElementById("calendar-panel-search");
+const calendarPanelSettings = document.getElementById("calendar-panel-settings");
 const refreshCalendarEventsButton = document.getElementById("refresh-calendar-events");
 const calendarViewListButton = document.getElementById("calendar-view-list");
 const calendarViewCalendarButton = document.getElementById("calendar-view-calendar");
@@ -184,6 +190,7 @@ let isAddBriefOpen = false;
 let selectedBriefForSessionId = null;
 let selectedCalendarWriterId = null;
 let calendarEventsViewMode = "list";
+let activeCalendarSection = "writers";
 const writerCalendarEventsCache = new Map();
 let lastCalendarKeywordSearch = "";
 let lastCalendarKeywordSearchResults = [];
@@ -2263,6 +2270,25 @@ const setCalendarEventsStatus = (message, isError = false) => {
   calendarEventsStatus.classList.toggle("error", isError);
 };
 
+const setCalendarSection = (section) => {
+  const nextSection = ["writers", "search", "settings"].includes(section) ? section : "writers";
+  activeCalendarSection = nextSection;
+
+  if (calendarSectionWritersButton) {
+    calendarSectionWritersButton.classList.toggle("active", nextSection === "writers");
+  }
+  if (calendarSectionSearchButton) {
+    calendarSectionSearchButton.classList.toggle("active", nextSection === "search");
+  }
+  if (calendarSectionSettingsButton) {
+    calendarSectionSettingsButton.classList.toggle("active", nextSection === "settings");
+  }
+
+  if (calendarPanelWriters) calendarPanelWriters.classList.toggle("hidden", nextSection !== "writers");
+  if (calendarPanelSearch) calendarPanelSearch.classList.toggle("hidden", nextSection !== "search");
+  if (calendarPanelSettings) calendarPanelSettings.classList.toggle("hidden", nextSection !== "settings");
+};
+
 const setCalendarEventsViewMode = (mode) => {
   const normalized = mode === "calendar" ? "calendar" : "list";
   calendarEventsViewMode = normalized;
@@ -3382,6 +3408,7 @@ const switchView = (viewKey) => {
     if (viewKey !== "calendar") setCalendarMenuOpen(false);
   }
   if (viewKey === "calendar") {
+    setCalendarSection(activeCalendarSection || "writers");
     renderCalendarWriterList();
     loadSelectedWriterCalendarEvents();
   }
@@ -5810,7 +5837,27 @@ if (calendarWriterList) {
     if (!writerId) return;
     selectedCalendarWriterId = writerId;
     renderCalendarWriterList();
+    setCalendarSection("search");
     loadSelectedWriterCalendarEvents();
+  });
+}
+
+if (calendarSectionWritersButton) {
+  calendarSectionWritersButton.addEventListener("click", () => {
+    setCalendarSection("writers");
+  });
+}
+
+if (calendarSectionSearchButton) {
+  calendarSectionSearchButton.addEventListener("click", () => {
+    setCalendarSection("search");
+    loadSelectedWriterCalendarEvents();
+  });
+}
+
+if (calendarSectionSettingsButton) {
+  calendarSectionSettingsButton.addEventListener("click", () => {
+    setCalendarSection("settings");
   });
 }
 
@@ -5961,6 +6008,7 @@ syncProducerOptionsUi();
 syncPublishedRosterSlotsUi();
 setCalendarMenuOpen(false);
 setCalendarEventsViewMode("list");
+setCalendarSection("writers");
 setCalendarStatus("iCloud mode active.");
 setScheduleStatus("");
 setPairingQueueStatus("");

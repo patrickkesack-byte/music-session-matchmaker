@@ -330,12 +330,20 @@
 
       <section id="calendar-view" class="view">
         <div class="card">
-          <div class="calendar-split">
+          <div class="calendar-sections-tabs" role="tablist" aria-label="Calendar tools">
+            <button id="calendar-section-writers" type="button" class="ghost section-toggle active">Writers</button>
+            <button id="calendar-section-search" type="button" class="ghost section-toggle">Search</button>
+            <button id="calendar-section-settings" type="button" class="ghost section-toggle">Settings</button>
+          </div>
+
+          <div id="calendar-panel-writers" class="calendar-section-panel">
             <div class="calendar-sidebar">
               <h2>Published Writers</h2>
               <div id="calendar-writer-list" class="calendar-writer-list"></div>
             </div>
+          </div>
 
+          <div id="calendar-panel-search" class="calendar-section-panel hidden">
             <div class="calendar-main">
               <div class="card-head">
                 <h2 id="calendar-events-title">Calendar Events</h2>
@@ -345,30 +353,6 @@
                     <button id="calendar-view-calendar" type="button" class="ghost mini-btn">Calendar View</button>
                   </div>
                   <button id="refresh-calendar-events" type="button" class="ghost mini-btn">Refresh</button>
-                  <div class="calendar-dropdown hidden">
-                    <button id="calendar-menu-toggle" type="button" class="ghost mini-btn">Calendar Settings</button>
-                    <div id="calendar-menu-panel" class="calendar-menu-panel hidden">
-                      <p class="hint">iCloud Calendar</p>
-                      <label>
-                        iCloud Proxy URL
-                        <input id="icloud-proxy-url" type="text" value="/api/icloud-ics?url=" placeholder="/api/icloud-ics?url=" />
-                      </label>
-                      <label>
-                        Shared API URL
-                        <input id="shared-api-url" type="text" placeholder="http://192.168.1.10:5051" />
-                      </label>
-                      <label>
-                        Supabase URL
-                        <input id="supabase-url" type="text" value="https://pffedarmnkzqegharrox.supabase.co" placeholder="https://YOUR_PROJECT.supabase.co" />
-                      </label>
-                      <label>
-                        Supabase Anon Key
-                        <input id="supabase-anon-key" type="password" value="sb_publishable_QCWEsXl56XwKOR1Ot21Ogg_4HDNX5Ll" placeholder="ey..." />
-                      </label>
-                      <p id="calendar-status" class="status"></p>
-                      <p id="shared-sync-status" class="status"></p>
-                    </div>
-                  </div>
                 </div>
               </div>
               <div class="calendar-search-tools">
@@ -394,6 +378,31 @@
                 <pre id="calendar-report-output"></pre>
                 <a id="download-calendar-report" class="ghost link-button" href="#" download="calendar-keyword-report.txt">Download Report</a>
               </div>
+            </div>
+          </div>
+
+          <div id="calendar-panel-settings" class="calendar-section-panel hidden">
+            <h2>Calendar Settings</h2>
+            <div id="calendar-menu-panel" class="calendar-menu-panel settings-panel-open">
+              <p class="hint">iCloud Calendar</p>
+              <label>
+                iCloud Proxy URL
+                <input id="icloud-proxy-url" type="text" value="/api/icloud-ics?url=" placeholder="/api/icloud-ics?url=" />
+              </label>
+              <label>
+                Shared API URL
+                <input id="shared-api-url" type="text" placeholder="http://192.168.1.10:5051" />
+              </label>
+              <label>
+                Supabase URL
+                <input id="supabase-url" type="text" value="https://pffedarmnkzqegharrox.supabase.co" placeholder="https://YOUR_PROJECT.supabase.co" />
+              </label>
+              <label>
+                Supabase Anon Key
+                <input id="supabase-anon-key" type="password" value="sb_publishable_QCWEsXl56XwKOR1Ot21Ogg_4HDNX5Ll" placeholder="ey..." />
+              </label>
+              <p id="calendar-status" class="status"></p>
+              <p id="shared-sync-status" class="status"></p>
             </div>
           </div>
         </div>

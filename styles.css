@@ -356,10 +356,21 @@ legend {
   margin-top: 0.22rem;
 }
 
-.calendar-split {
+.calendar-sections-tabs {
   display: grid;
-  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
-  gap: 0.9rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.52rem;
+  margin-bottom: 0.68rem;
+}
+
+.calendar-sections-tabs .section-toggle {
+  width: 100%;
+}
+
+.calendar-section-panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 0.72rem;
 }
 
 .calendar-sidebar h2,
@@ -370,7 +381,7 @@ legend {
 .calendar-writer-list {
   display: grid;
   gap: 0.42rem;
-  max-height: 68vh;
+  max-height: 72vh;
   overflow: auto;
   padding-right: 0.15rem;
 }
@@ -936,6 +947,14 @@ button:hover {
   box-shadow: 0 8px 24px rgba(17, 17, 17, 0.08);
 }
 
+.calendar-menu-panel.settings-panel-open {
+  position: static;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
 .calendar-menu-panel label {
   font-size: 0.66rem;
   margin-bottom: 0.58rem;
@@ -1195,12 +1214,12 @@ textarea {
     flex-direction: column;
   }
 
-  .role-count-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .calendar-sections-tabs {
+    grid-template-columns: 1fr;
   }
 
-  .calendar-split {
-    grid-template-columns: 1fr;
+  .role-count-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .calendar-writer-list {
