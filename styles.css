@@ -813,6 +813,27 @@ button:hover {
   background: var(--surface);
 }
 
+.songwriter-sections-card {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.songwriter-sections-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.52rem;
+}
+
+.songwriter-sections-tabs .section-toggle {
+  width: 100%;
+}
+
+.songwriter-section-panel {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 0.68rem;
+}
+
 #writer-google-calendar-tools {
   margin-bottom: 0.8rem;
 }

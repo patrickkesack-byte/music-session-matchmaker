@@ -55,6 +55,9 @@ const openPairingsCard = document.getElementById("open-pairings-card");
 
 const writerSearchInput = document.getElementById("writer-search");
 const toggleAllSongwritersButton = document.getElementById("toggle-all-songwriters");
+const songwriterSectionAddPanel = document.getElementById("songwriter-section-add");
+const songwriterSectionBulkPanel = document.getElementById("songwriter-section-bulk");
+const songwriterSectionListPanel = document.getElementById("songwriter-section-list");
 const calendarWriterList = document.getElementById("calendar-writer-list");
 const calendarEventsList = document.getElementById("calendar-events-list");
 const calendarEventsStatus = document.getElementById("calendar-events-status");
@@ -167,6 +170,7 @@ const views = Object.fromEntries(
 let editingSongwriterId = null;
 let inlineEditingWriterId = null;
 let showAllSongwriters = false;
+let activeSongwriterSection = "add";
 let latestRenderedSessionId = null;
 let latestRenderedCandidates = [];
 let selectedPairingWriterIds = new Set();
@@ -883,10 +887,6 @@ const setBriefStatus = (message, isError = false) => {
 const setAddSongwriterFormOpen = (isOpen) => {
   isAddSongwriterFormOpen = Boolean(isOpen);
   songwriterForm.classList.toggle("hidden", !isAddSongwriterFormOpen);
-  if (toggleAddSongwriterButton) {
-    toggleAddSongwriterButton.classList.toggle("active", isAddSongwriterFormOpen);
-    toggleAddSongwriterButton.setAttribute("aria-expanded", isAddSongwriterFormOpen ? "true" : "false");
-  }
 };
 
 const setBulkImportOpen = (isOpen) => {
@@ -894,10 +894,30 @@ const setBulkImportOpen = (isOpen) => {
   if (bulkImportTools) {
     bulkImportTools.classList.toggle("hidden", !isBulkImportOpen);
   }
-  if (toggleBulkImportButton) {
-    toggleBulkImportButton.classList.toggle("active", isBulkImportOpen);
-    toggleBulkImportButton.setAttribute("aria-expanded", isBulkImportOpen ? "true" : "false");
+};
+
+const setSongwriterSection = (section) => {
+  const nextSection = ["add", "bulk", "list"].includes(section) ? section : "add";
+  activeSongwriterSection = nextSection;
+
+  if (toggleAddSongwriterButton) toggleAddSongwriterButton.classList.toggle("active", nextSection === "add");
+  if (toggleBulkImportButton) toggleBulkImportButton.classList.toggle("active", nextSection === "bulk");
+  if (toggleAllSongwritersButton) toggleAllSongwritersButton.classList.toggle("active", nextSection === "list");
+
+  if (songwriterSectionAddPanel) songwriterSectionAddPanel.classList.toggle("hidden", nextSection !== "add");
+  if (songwriterSectionBulkPanel) songwriterSectionBulkPanel.classList.toggle("hidden", nextSection !== "bulk");
+  if (songwriterSectionListPanel) songwriterSectionListPanel.classList.toggle("hidden", nextSection !== "list");
+
+  setAddSongwriterFormOpen(nextSection === "add");
+  setBulkImportOpen(nextSection === "bulk");
+
+  if (nextSection === "list") {
+    showAllSongwriters = !(writerSearchInput?.value || "").trim();
+  } else {
+    showAllSongwriters = false;
   }
+
+  renderSongwriters();
 };
 
 const setNewPairingOpen = () => {
@@ -4908,7 +4928,6 @@ songwriterForm.addEventListener("submit", (event) => {
   saveSongwriters(songwriters);
   songwriterStatus.textContent = editingSongwriterId ? `Updated ${songwriter.name}.` : `Added ${songwriter.name}.`;
   resetSongwriterForm();
-  setAddSongwriterFormOpen(false);
   renderSongwriters();
   renderLatestSessionResult();
   switchView("songwriters");
@@ -5370,16 +5389,17 @@ if (authLogoutButton) {
   });
 }
 
-toggleAllSongwritersButton.addEventListener("click", () => {
-  showAllSongwriters = !showAllSongwriters;
-  toggleAllSongwritersButton.textContent = showAllSongwriters ? "Hide Songwriters" : "View All Songwriters";
-  renderSongwriters();
-});
+if (toggleAllSongwritersButton) {
+  toggleAllSongwritersButton.addEventListener("click", () => {
+    setSongwriterSection("list");
+  });
+}
 
 writerSearchInput.addEventListener("input", () => {
   if (writerSearchInput.value.trim()) {
     showAllSongwriters = false;
-    toggleAllSongwritersButton.textContent = "View All Songwriters";
+  } else if (activeSongwriterSection === "list") {
+    showAllSongwriters = true;
   }
   renderSongwriters();
 });
@@ -5761,22 +5781,22 @@ if (checkAllAvailabilityButton) {
 
 cancelEditButton.addEventListener("click", () => {
   resetSongwriterForm();
-  setAddSongwriterFormOpen(false);
+  setSongwriterSection("add");
   switchView("songwriters");
 });
 
 if (toggleAddSongwriterButton) {
   toggleAddSongwriterButton.addEventListener("click", () => {
-    if (isAddSongwriterFormOpen && editingSongwriterId) {
+    if (activeSongwriterSection !== "add" && editingSongwriterId) {
       resetSongwriterForm();
     }
-    setAddSongwriterFormOpen(!isAddSongwriterFormOpen);
+    setSongwriterSection("add");
   });
 }
 
 if (toggleBulkImportButton) {
   toggleBulkImportButton.addEventListener("click", () => {
-    setBulkImportOpen(!isBulkImportOpen);
+    setSongwriterSection("bulk");
   });
 }
 
@@ -5924,8 +5944,7 @@ if (calendarMenuToggleButton && calendarMenuPanel) {
 
 setSongwriterFormMode(false);
 setNewPairingOpen(false);
-setAddSongwriterFormOpen(false);
-setBulkImportOpen(false);
+setSongwriterSection("add");
 setAddBriefOpen(false);
 hydrateGoogleSettingsUi();
 hydrateSharedSettingsUi();
