@@ -2520,6 +2520,14 @@ const getModeSlots = (schedule) => {
   return slots;
 };
 
+const getSessionDayWindow = (dayStart) => {
+  const start = new Date(dayStart);
+  start.setHours(11, 0, 0, 0);
+  const end = new Date(dayStart);
+  end.setHours(23, 0, 0, 0);
+  return { start, end };
+};
+
 const getGoogleAvailabilityForWriter = async (writer, schedule, studioCalendarIds) => {
   if (!writer.calendarId) {
     return { status: "missing-calendar", summary: "No linked writer calendar." };
@@ -2537,7 +2545,8 @@ const getGoogleAvailabilityForWriter = async (writer, schedule, studioCalendarId
   const availableSlots = [];
 
   for (const slot of slots) {
-    const data = await fetchFreeBusy(calendarIds, slot.start.toISOString(), slot.end.toISOString());
+    const dayWindow = getSessionDayWindow(slot.start);
+    const data = await fetchFreeBusy(calendarIds, dayWindow.start.toISOString(), dayWindow.end.toISOString());
     const calendars = data.calendars || {};
     const allFree = calendarIds.every((id) => Array.isArray(calendars[id]?.busy) && calendars[id].busy.length === 0);
     if (allFree) {
@@ -2587,7 +2596,8 @@ const getIcloudAvailabilityForWriter = async (writer, schedule, studioCalendarId
   const availableSlots = [];
 
   for (const slot of slots) {
-    const writerBusy = busyEvents.some((evt) => overlaps(evt.start, evt.end, slot.start, slot.end));
+    const dayWindow = getSessionDayWindow(slot.start);
+    const writerBusy = busyEvents.some((evt) => overlaps(evt.start, evt.end, dayWindow.start, dayWindow.end));
     if (writerBusy) continue;
     availableSlots.push(slot);
     if (availableSlots.length >= 3) break;
