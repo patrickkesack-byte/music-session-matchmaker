@@ -167,6 +167,7 @@ let inlineEditingWriterId = null;
 let showAllSongwriters = false;
 let latestRenderedSessionId = null;
 let latestRenderedCandidates = [];
+let selectedPairingWriterIds = new Set();
 let latestRenderCycle = 0;
 let showLatestPairingResults = true;
 let visiblePairingResultsCount = PAIRING_RESULTS_PAGE_SIZE;
@@ -4304,6 +4305,11 @@ const writerMatchesProducerSubfilter = (writer, filter) => {
 
 const buildCandidateNode = (entry, index, availabilityByWriterId) => {
   const c = candidateTemplate.content.cloneNode(true);
+  const selectInput = c.querySelector(".candidate-select");
+  if (selectInput) {
+    selectInput.dataset.writerId = entry.writer.id;
+    selectInput.checked = selectedPairingWriterIds.has(entry.writer.id);
+  }
   const availability = availabilityByWriterId.get(entry.writer.id) || {
     status: "error",
     summary: "availability check failed",
@@ -4344,6 +4350,7 @@ const renderLatestSessionResult = async () => {
     sessionsList.innerHTML = "";
     sessionsList.classList.remove("loading");
     latestRenderedCandidates = [];
+    selectedPairingWriterIds = new Set();
     if (pairingResultsCard) pairingResultsCard.classList.add("hidden");
     if (seeMorePairingResultsButton) seeMorePairingResultsButton.classList.add("hidden");
     return;
@@ -4353,6 +4360,10 @@ const renderLatestSessionResult = async () => {
 
   const allSongwriters = loadSongwriters();
   const allCandidates = getTopCandidates(latest, allSongwriters);
+  const validWriterIds = new Set(allCandidates.map((entry) => entry.writer.id));
+  selectedPairingWriterIds = new Set(
+    Array.from(selectedPairingWriterIds).filter((id) => validWriterIds.has(id))
+  );
   const seekingRoles = normalizeRoles(latest.seeking || []);
   const roleIntentClauses = normalizeRoleIntentClauses(latest.roleIntentClauses || []);
   const groupedCandidates = roleIntentClauses.length >= 2 || seekingRoles.length >= 2;
@@ -4558,9 +4569,11 @@ const generateLatestPairingReport = () => {
   const latest = loadSessions().find((s) => s.id === latestRenderedSessionId);
   if (!latest) return false;
 
-  const candidates = latestRenderedCandidates.length
-    ? latestRenderedCandidates
-    : getTopCandidates(latest, loadSongwriters(), visiblePairingResultsCount);
+  const allMatched = getTopCandidates(latest, loadSongwriters());
+  const selectedIds = Array.from(selectedPairingWriterIds);
+  const candidates = selectedIds.length
+    ? allMatched.filter((entry) => selectedPairingWriterIds.has(entry.writer.id))
+    : allMatched;
 
   const report = buildPairingReport(candidates);
   reportOutput.textContent = report;
@@ -4985,6 +4998,7 @@ sessionForm.addEventListener("submit", async (event) => {
   showLatestPairingResults = true;
   visiblePairingResultsCount = PAIRING_RESULTS_PAGE_SIZE;
   activeCandidateFilterKey = "";
+  selectedPairingWriterIds = new Set();
 
   if (selectedBriefForSessionId) {
     const briefs = loadBriefs();
@@ -5097,6 +5111,21 @@ if (exportSongwritersButton) {
   });
 }
 
+if (sessionsList) {
+  sessionsList.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (!target.classList.contains("candidate-select")) return;
+    const writerId = String(target.dataset.writerId || "").trim();
+    if (!writerId) return;
+    if (target.checked) {
+      selectedPairingWriterIds.add(writerId);
+    } else {
+      selectedPairingWriterIds.delete(writerId);
+    }
+  });
+}
+
 generateReportButton.addEventListener("click", () => {
   generateLatestPairingReport();
 });
@@ -5137,6 +5166,7 @@ if (seeMorePairingResultsButton) {
 refreshPairingButton.addEventListener("click", () => {
   latestRenderedSessionId = null;
   latestRenderedCandidates = [];
+  selectedPairingWriterIds = new Set();
   showLatestPairingResults = false;
   visiblePairingResultsCount = PAIRING_RESULTS_PAGE_SIZE;
   activeCandidateFilterKey = "";
@@ -5159,6 +5189,7 @@ refreshSessionBriefButton.addEventListener("click", () => {
   syncProducerOptionsUi();
   syncPublishedRosterSlotsUi();
   activeCandidateFilterKey = "";
+  selectedPairingWriterIds = new Set();
   sessionStatus.textContent = "";
   if (sessionLocationStatus) sessionLocationStatus.textContent = "";
   hydrateGoogleSettingsUi();
