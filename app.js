@@ -4241,7 +4241,52 @@ const renderLatestSessionResult = async () => {
 
   const allSongwriters = loadSongwriters();
   const allCandidates = getTopCandidates(latest, allSongwriters);
-  let candidates = allCandidates.slice(0, visiblePairingResultsCount);
+  const seekingRoles = normalizeRoles(latest.seeking || []);
+  const roleIntentClauses = normalizeRoleIntentClauses(latest.roleIntentClauses || []);
+  const groupedCandidates = roleIntentClauses.length >= 2 || seekingRoles.length >= 2;
+  const groups = groupedCandidates
+    ? roleIntentClauses.length
+      ? roleIntentClauses.map((clause, idx) => ({
+          key: `clause:${clause.role}:${idx}`,
+          title: roleIntentClauseTitle(clause),
+          entries: allCandidates.filter((entry) => roleIntentClauseMatchesWriter(entry.writer, clause)),
+          empty: `No matches for ${roleIntentClauseTitle(clause)}.`,
+        }))
+      : [
+          {
+            key: "all-selected-seeking",
+            title:
+              seekingRoles.length === 2
+                ? `${formatLocationLabel(seekingRoles[0])} + ${formatLocationLabel(seekingRoles[1])}`
+                : "All selected roles",
+            entries: allCandidates.filter((entry) =>
+              seekingRoles.every((role) => writerMatchesSeekingRole(entry.writer, role))
+            ),
+            empty: "No writers match all selected roles.",
+          },
+          ...seekingRoles.map((role) => ({
+            key: `role:${role}`,
+            title: formatLocationLabel(role),
+            entries: allCandidates.filter((entry) => writerMatchesSeekingRole(entry.writer, role)),
+            empty: `No ${role} matches.`,
+          })),
+        ]
+    : [];
+  const activeGroupIndex = groupedCandidates
+    ? Math.max(
+        0,
+        groups.findIndex((group) => group.key === activeCandidateFilterKey)
+      )
+    : -1;
+  if (groupedCandidates) {
+    activeCandidateFilterKey = groups[activeGroupIndex]?.key || "";
+  } else {
+    activeCandidateFilterKey = "";
+  }
+  const activeGroup = groupedCandidates ? groups[activeGroupIndex] : null;
+  let candidates = groupedCandidates
+    ? (activeGroup?.entries || []).slice(0, visiblePairingResultsCount)
+    : allCandidates.slice(0, visiblePairingResultsCount);
   const settings = loadGoogleSettings();
   const availabilityByWriterId = new Map();
 
@@ -4298,56 +4343,9 @@ const renderLatestSessionResult = async () => {
     candidateList.innerHTML = "<p class='hint'>No matches found.</p>";
     activeCandidateFilterKey = "";
   } else {
-    const seekingRoles = normalizeRoles(latest.seeking || []);
-    const roleIntentClauses = normalizeRoleIntentClauses(latest.roleIntentClauses || []);
-    if (roleIntentClauses.length >= 2 || seekingRoles.length >= 2) {
-      const groups = roleIntentClauses.length
-        ? roleIntentClauses.map((clause, idx) => ({
-            key: `clause:${clause.role}:${idx}`,
-            title: roleIntentClauseTitle(clause),
-            entries: candidates.filter((entry) => roleIntentClauseMatchesWriter(entry.writer, clause)),
-            empty: `No matches for ${roleIntentClauseTitle(clause)}.`,
-          }))
-        : [
-            {
-              key: "all-selected-seeking",
-              title:
-                seekingRoles.length === 2
-                  ? `${formatLocationLabel(seekingRoles[0])} + ${formatLocationLabel(seekingRoles[1])}`
-                  : "All selected roles",
-              entries: candidates.filter((entry) =>
-                seekingRoles.every((role) => writerMatchesSeekingRole(entry.writer, role))
-              ),
-              empty: "No writers match all selected roles.",
-            },
-            ...seekingRoles.map((role) => ({
-              key: `role:${role}`,
-              title: formatLocationLabel(role),
-              entries: candidates.filter((entry) => writerMatchesSeekingRole(entry.writer, role)),
-              empty: `No ${role} matches.`,
-            })),
-          ];
+    if (groupedCandidates) {
       const filterBar = document.createElement("div");
       filterBar.className = "candidate-filter-bar";
-      const list = document.createElement("div");
-      list.className = "candidate-list";
-
-      const renderGroup = (groupIndex) => {
-        list.innerHTML = "";
-        const group = groups[groupIndex];
-        if (!group || !group.entries.length) {
-          list.innerHTML = `<p class="hint">${group?.empty || "No matches."}</p>`;
-          return;
-        }
-        group.entries.forEach((entry, index) => {
-          list.append(buildCandidateNode(entry, index, availabilityByWriterId));
-        });
-      };
-
-      const activeGroupIndex = Math.max(
-        0,
-        groups.findIndex((group) => group.key === activeCandidateFilterKey)
-      );
 
       groups.forEach((group, groupIndex) => {
         const btn = document.createElement("button");
@@ -4355,21 +4353,24 @@ const renderLatestSessionResult = async () => {
         btn.className = "ghost candidate-filter-btn";
         btn.textContent = group.title;
         if (groupIndex === activeGroupIndex) btn.classList.add("active");
-        btn.addEventListener("click", () => {
-          filterBar.querySelectorAll(".candidate-filter-btn").forEach((node) => {
-            node.classList.remove("active");
-          });
-          btn.classList.add("active");
+        btn.addEventListener("click", async () => {
           activeCandidateFilterKey = group.key;
-          renderGroup(groupIndex);
+          await renderLatestSessionResult();
         });
         filterBar.append(btn);
       });
 
-      activeCandidateFilterKey = groups[activeGroupIndex]?.key || "";
-      renderGroup(activeGroupIndex);
       candidateList.append(filterBar);
-      candidateList.append(list);
+      if (!candidates.length) {
+        const hint = document.createElement("p");
+        hint.className = "hint";
+        hint.textContent = activeGroup?.empty || "No matches.";
+        candidateList.append(hint);
+      } else {
+        candidates.forEach((entry, index) => {
+          candidateList.append(buildCandidateNode(entry, index, availabilityByWriterId));
+        });
+      }
     } else {
       activeCandidateFilterKey = "";
       candidates.forEach((entry, index) => {
@@ -4381,7 +4382,8 @@ const renderLatestSessionResult = async () => {
   latestRenderedCandidates = candidates;
   generateReportButton.disabled = false;
   if (seeMorePairingResultsButton) {
-    const hasMore = allCandidates.length > candidates.length;
+    const totalForActive = groupedCandidates ? (activeGroup?.entries?.length || 0) : allCandidates.length;
+    const hasMore = totalForActive > candidates.length;
     seeMorePairingResultsButton.classList.toggle("hidden", !hasMore);
     seeMorePairingResultsButton.disabled = !hasMore;
   }
