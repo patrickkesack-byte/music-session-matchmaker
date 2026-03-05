@@ -117,7 +117,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = process.env.OPENAI_MODEL || "gpt-5";
   const schema = {
     name: "pairing_constraints",
     strict: true,

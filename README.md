@@ -50,7 +50,7 @@ Tag format:
 ## Pairing logic
 
 - Required tags are auto-extracted from session brief + session location
-- Candidate threshold: `40%` minimum fit
+- No minimum fit threshold; all eligible matches are returned and ranked
 - Session option: include all writers or only `published` writers
 - Availability is checked later in `Schedule` (`Check Availability` / `Check Availability for All`)
 
@@ -73,5 +73,5 @@ Tag format:
 
 - In Vercel Project Settings -> Environment Variables, add:
   - `OPENAI_API_KEY` (required)
-  - `OPENAI_MODEL` (optional; default is `gpt-4o-mini`)
+  - `OPENAI_MODEL` (optional; default is `gpt-5`)
 - Redeploy after setting env vars.
