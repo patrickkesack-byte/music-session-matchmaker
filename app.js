@@ -202,6 +202,7 @@ let supabasePushTimeout = null;
 let autoLogoutTimeoutId = null;
 let lastAuthActivityPersistMs = 0;
 let authSignedOutReason = "";
+let pendingSongwriterUiRefresh = false;
 const ALL_CALENDAR_WRITERS_ID = "__all_published_writers__";
 const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 let calendarMonthCursor = startOfMonth(new Date());
@@ -1311,9 +1312,8 @@ const syncSongwritersFromRemote = async () => {
       const after = JSON.stringify(merged);
       if (before !== after) {
         saveSongwriters(merged, { skipRemote: true });
-        renderSongwriters();
+        refreshSongwriterUi();
         renderLatestSessionResult();
-        renderCalendarWriterList();
       }
     }
     setSharedSyncStatus("Shared sync active.");
@@ -1393,9 +1393,8 @@ const pullSongwritersFromSupabase = async () => {
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     if (JSON.stringify(localSorted) !== JSON.stringify(remoteSorted)) {
       saveSongwriters(remoteSorted, { skipRemote: true, skipSupabase: true });
-      renderSongwriters();
+      refreshSongwriterUi();
       renderLatestSessionResult();
-      renderCalendarWriterList();
     }
     lastSupabaseSyncMs = Date.now();
     setSharedSyncStatus("Supabase sync active.");
@@ -3486,6 +3485,22 @@ const renderSongwriters = () => {
   });
 };
 
+const refreshSongwriterUi = () => {
+  if (inlineEditingWriterId) {
+    pendingSongwriterUiRefresh = true;
+    return;
+  }
+  renderSongwriters();
+  renderCalendarWriterList();
+};
+
+const flushDeferredSongwriterUiRefresh = () => {
+  if (!pendingSongwriterUiRefresh || inlineEditingWriterId) return;
+  pendingSongwriterUiRefresh = false;
+  renderSongwriters();
+  renderCalendarWriterList();
+};
+
 const renderSessionLocationOptions = (songwriters = loadSongwriters()) => {
   if (!sessionLocationInput) return;
   // Location is free-type by request; keep matcher case-insensitive via lowercasing on save/search.
@@ -5473,6 +5488,7 @@ songwriterList.addEventListener("click", (event) => {
 
   if (target.classList.contains("cancel-inline-writer")) {
     inlineEditingWriterId = null;
+    flushDeferredSongwriterUiRefresh();
     renderSongwriters();
     return;
   }
@@ -5537,6 +5553,7 @@ songwriterList.addEventListener("click", (event) => {
     saveSongwriters(writers);
     songwriterStatus.textContent = `Updated ${name}.`;
     inlineEditingWriterId = null;
+    flushDeferredSongwriterUiRefresh();
     renderSongwriters();
     renderLatestSessionResult();
   }
