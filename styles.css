@@ -735,23 +735,6 @@ textarea::placeholder {
   color: var(--muted);
 }
 
-#writer-search,
-#calendar-keyword-search {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-#writer-search::placeholder,
-#calendar-keyword-search::placeholder {
-  color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 select.placeholder {
   color: var(--muted);
 }
