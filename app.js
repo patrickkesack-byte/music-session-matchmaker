@@ -3410,7 +3410,7 @@ const switchView = (viewKey) => {
     if (viewKey !== "calendar") setCalendarMenuOpen(false);
   }
   if (viewKey === "calendar") {
-    setCalendarSection("");
+    setCalendarSection("search");
     renderCalendarWriterList();
     loadSelectedWriterCalendarEvents();
   }
