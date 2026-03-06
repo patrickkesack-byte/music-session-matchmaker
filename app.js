@@ -190,12 +190,14 @@ let isAddBriefOpen = false;
 let selectedBriefForSessionId = null;
 let selectedCalendarWriterId = null;
 let calendarEventsViewMode = "list";
-let activeCalendarSection = "writers";
+let activeCalendarSection = "";
 const writerCalendarEventsCache = new Map();
 let lastCalendarKeywordSearch = "";
 let lastCalendarKeywordSearchResults = [];
 let lastCalendarKeywordSearchMeta = { scanned: 0, withCalendars: 0, matchedWriters: 0, skippedNoCalendar: 0 };
 let lastCalendarKeywordSearchScopeLabel = "all published writers";
+let lastCalendarKeywordSearchMode = "keyword";
+let lastCalendarKeywordSearchDateLabel = "";
 
 let googleTokenClient = null;
 let googleAccessToken = "";
@@ -2271,7 +2273,7 @@ const setCalendarEventsStatus = (message, isError = false) => {
 };
 
 const setCalendarSection = (section) => {
-  const nextSection = ["writers", "search", "settings"].includes(section) ? section : "writers";
+  const nextSection = ["writers", "search", "settings", ""].includes(section) ? section : "";
   activeCalendarSection = nextSection;
 
   if (calendarSectionWritersButton) {
@@ -3408,7 +3410,7 @@ const switchView = (viewKey) => {
     if (viewKey !== "calendar") setCalendarMenuOpen(false);
   }
   if (viewKey === "calendar") {
-    setCalendarSection(activeCalendarSection || "writers");
+    setCalendarSection("");
     renderCalendarWriterList();
     loadSelectedWriterCalendarEvents();
   }
@@ -3564,13 +3566,7 @@ const getPublishedCalendarWriters = () =>
 
 const setCalendarKeywordPlaceholder = () => {
   if (!calendarKeywordSearchInput) return;
-  const writers = getPublishedCalendarWriters();
-  const selected = writers.find((w) => w.id === selectedCalendarWriterId);
-  const scopeText =
-    selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID || !selected
-      ? "all published songwriters"
-      : selected.name || "selected songwriter";
-  calendarKeywordSearchInput.placeholder = `search collaborators for ${scopeText}`;
+  calendarKeywordSearchInput.placeholder = "search dates, collaborators, past sessions etc...";
 };
 
 const renderCalendarWriterList = () => {
@@ -3603,8 +3599,7 @@ const renderCalendarWriterList = () => {
   allBtn.className = "ghost calendar-writer-btn";
   if (selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID) allBtn.classList.add("active");
   allBtn.dataset.writerId = ALL_CALENDAR_WRITERS_ID;
-  allBtn.innerHTML =
-    '<span class="calendar-writer-btn-name">All Writers</span><span class="calendar-writer-btn-meta">search all calendars</span>';
+  allBtn.innerHTML = '<span class="calendar-writer-btn-name">All Writers</span>';
   calendarWriterList.append(allBtn);
 
   writers.forEach((writer) => {
@@ -3647,7 +3642,7 @@ const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
   setCalendarKeywordPlaceholder();
   if (selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID) {
     setCalendarViewControlsVisibility(false);
-    if (calendarEventsTitle) calendarEventsTitle.textContent = "All Published Calendars";
+    if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar";
     calendarEventsList.innerHTML = "";
     setCalendarEventsStatus("");
     return;
@@ -3712,6 +3707,98 @@ const formatCalendarSearchMatchLine = (event) => {
   return parts.join(" | ");
 };
 
+const monthNameToIndex = (name) => {
+  const key = String(name || "").toLowerCase().slice(0, 3);
+  const map = {
+    jan: 0,
+    feb: 1,
+    mar: 2,
+    apr: 3,
+    may: 4,
+    jun: 5,
+    jul: 6,
+    aug: 7,
+    sep: 8,
+    oct: 9,
+    nov: 10,
+    dec: 11,
+  };
+  return Number.isInteger(map[key]) ? map[key] : -1;
+};
+
+const startOfDayLocal = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+const endOfDayLocal = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+const parseDateFromCalendarQuery = (rawQuery) => {
+  const query = String(rawQuery || "").trim();
+  if (!query) return null;
+  const now = new Date();
+  const normalizedQuery = query
+    .replace(/(\d)(st|nd|rd|th)\b/gi, "$1")
+    .replace(/,/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // month-name style: march 7th, mar 7, march 7 2026
+  const monthNameMatch = normalizedQuery.match(
+    /\b(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sept|sep|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:[,\s]+(\d{4}))?\b/i
+  );
+  if (monthNameMatch) {
+    const monthIdx = monthNameToIndex(monthNameMatch[1]);
+    const day = Number(monthNameMatch[2]);
+    const year = Number(monthNameMatch[3] || now.getFullYear());
+    if (monthIdx >= 0 && day >= 1 && day <= 31 && year >= 1900) {
+      const date = new Date(year, monthIdx, day);
+      if (!Number.isNaN(date.getTime()) && date.getMonth() === monthIdx && date.getDate() === day) {
+        return { date };
+      }
+    }
+  }
+
+  // numeric style: 3/7, 03-07-2026, 2026-03-07
+  const isoMatch = normalizedQuery.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]) - 1;
+    const day = Number(isoMatch[3]);
+    const date = new Date(year, month, day);
+    if (!Number.isNaN(date.getTime()) && date.getMonth() === month && date.getDate() === day) {
+      return { date };
+    }
+  }
+
+  const usNumericMatch = normalizedQuery.match(/\b(\d{1,2})[\/-](\d{1,2})(?:[\/-](\d{2,4}))?\b/);
+  if (usNumericMatch) {
+    const month = Number(usNumericMatch[1]) - 1;
+    const day = Number(usNumericMatch[2]);
+    let year = Number(usNumericMatch[3] || now.getFullYear());
+    if (year < 100) year += 2000;
+    const date = new Date(year, month, day);
+    if (!Number.isNaN(date.getTime()) && date.getMonth() === month && date.getDate() === day) {
+      return { date };
+    }
+  }
+
+  // fallback: native parser for natural dates like "march 6 2026"
+  const fallback = new Date(normalizedQuery);
+  if (!Number.isNaN(fallback.getTime())) {
+    return { date: new Date(fallback.getFullYear(), fallback.getMonth(), fallback.getDate()) };
+  }
+
+  return null;
+};
+
+const eventOverlapsWindow = (event, windowStart, windowEnd) => {
+  if (!(event?.start instanceof Date) || Number.isNaN(event.start.getTime())) return false;
+  const eventStart = event.start;
+  const eventEnd =
+    event.end instanceof Date && !Number.isNaN(event.end.getTime()) ? event.end : event.start;
+  return eventStart <= windowEnd && eventEnd >= windowStart;
+};
+
+const formatSearchDateLabel = (date) =>
+  date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+
 const renderCalendarKeywordSearchResults = () => {
   if (!calendarSearchResults) return;
   if (!lastCalendarKeywordSearch.trim()) {
@@ -3726,7 +3813,7 @@ const renderCalendarKeywordSearchResults = () => {
     if (calendarEventsTitle) {
       calendarEventsTitle.textContent =
         selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID
-          ? "All Published Calendars"
+          ? "Calendar"
           : selected
             ? calendarEventsViewMode === "calendar"
               ? `${selected.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
@@ -3736,7 +3823,7 @@ const renderCalendarKeywordSearchResults = () => {
     return;
   }
 
-  if (calendarEventsTitle) calendarEventsTitle.textContent = "All Published Calendars";
+  if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar";
   calendarSearchResults.classList.remove("hidden");
   if (generateCalendarKeywordReportButton) {
     generateCalendarKeywordReportButton.classList.remove("hidden");
@@ -3748,9 +3835,15 @@ const renderCalendarKeywordSearchResults = () => {
   }
 
   const sections = [];
-  sections.push(
-    `<p class="hint">Keyword: "${escapeHtml(lastCalendarKeywordSearch)}" • Scope: ${escapeHtml(lastCalendarKeywordSearchScopeLabel)} • Writers scanned: ${lastCalendarKeywordSearchMeta.scanned} • With calendars: ${lastCalendarKeywordSearchMeta.withCalendars} • Matched writers: ${lastCalendarKeywordSearchMeta.matchedWriters}</p>`
-  );
+  if (lastCalendarKeywordSearchMode === "date" && lastCalendarKeywordSearchDateLabel) {
+    sections.push(
+      `<p class="hint">Date: ${escapeHtml(lastCalendarKeywordSearchDateLabel)} • Scope: ${escapeHtml(lastCalendarKeywordSearchScopeLabel)} • Writers scanned: ${lastCalendarKeywordSearchMeta.scanned} • With calendars: ${lastCalendarKeywordSearchMeta.withCalendars} • With sessions: ${lastCalendarKeywordSearchMeta.matchedWriters}</p>`
+    );
+  } else {
+    sections.push(
+      `<p class="hint">Keyword: "${escapeHtml(lastCalendarKeywordSearch)}" • Scope: ${escapeHtml(lastCalendarKeywordSearchScopeLabel)} • Writers scanned: ${lastCalendarKeywordSearchMeta.scanned} • With calendars: ${lastCalendarKeywordSearchMeta.withCalendars} • Matched writers: ${lastCalendarKeywordSearchMeta.matchedWriters}</p>`
+    );
+  }
   if (lastCalendarKeywordSearchMeta.skippedNoCalendar > 0) {
     sections.push(
       `<p class="hint">${lastCalendarKeywordSearchMeta.skippedNoCalendar} published writer(s) skipped (no calendar URL).</p>`
@@ -3758,18 +3851,24 @@ const renderCalendarKeywordSearchResults = () => {
   }
 
   lastCalendarKeywordSearchResults.forEach((group) => {
+    const availabilityLabel =
+      lastCalendarKeywordSearchMode === "date" ? ` • ${escapeHtml(group.availabilityLabel || "")}` : "";
     sections.push(
       `<article class="calendar-search-group"><p class="calendar-search-group-title">${escapeHtml(
         group.writerName
-      )} <span class="calendar-search-count">(${group.matches.length})</span></p><p class="calendar-search-group-meta">Roster: ${escapeHtml(
+      )} <span class="calendar-search-count">(${group.matches.length})</span>${availabilityLabel}</p><p class="calendar-search-group-meta">Roster: ${escapeHtml(
         group.roster || "n/a"
       )}</p>`
     );
-    group.matches.forEach((match) => {
-      sections.push(
-        `<p class="calendar-search-match">${escapeHtml(formatCalendarSearchMatchLine(match))}</p>`
-      );
-    });
+    if (!group.matches.length && lastCalendarKeywordSearchMode === "date") {
+      sections.push('<p class="calendar-search-match">No sessions scheduled for this date.</p>');
+    } else {
+      group.matches.forEach((match) => {
+        sections.push(
+          `<p class="calendar-search-match">${escapeHtml(formatCalendarSearchMatchLine(match))}</p>`
+        );
+      });
+    }
     sections.push("</article>");
   });
 
@@ -3780,6 +3879,15 @@ const buildCalendarKeywordReport = () => {
   const keyword = lastCalendarKeywordSearch.trim();
   if (!keyword) return "No calendar keyword search has been run.";
   if (!lastCalendarKeywordSearchResults.length) {
+    if (lastCalendarKeywordSearchMode === "date" && lastCalendarKeywordSearchDateLabel) {
+      return [
+        `Date: ${lastCalendarKeywordSearchDateLabel}`,
+        `Scope: ${lastCalendarKeywordSearchScopeLabel}`,
+        `Writers scanned: ${lastCalendarKeywordSearchMeta.scanned}`,
+        `Writers with calendars: ${lastCalendarKeywordSearchMeta.withCalendars}`,
+        `Sessions found: none`,
+      ].join("\n");
+    }
     return [
       `Keyword: ${keyword}`,
       `Scope: ${lastCalendarKeywordSearchScopeLabel}`,
@@ -3790,11 +3898,19 @@ const buildCalendarKeywordReport = () => {
   }
 
   const lines = [];
-  lines.push(`Keyword: ${keyword}`);
+  if (lastCalendarKeywordSearchMode === "date" && lastCalendarKeywordSearchDateLabel) {
+    lines.push(`Date: ${lastCalendarKeywordSearchDateLabel}`);
+  } else {
+    lines.push(`Keyword: ${keyword}`);
+  }
   lines.push(`Scope: ${lastCalendarKeywordSearchScopeLabel}`);
   lines.push(`Writers scanned: ${lastCalendarKeywordSearchMeta.scanned}`);
   lines.push(`Writers with calendars: ${lastCalendarKeywordSearchMeta.withCalendars}`);
-  lines.push(`Matched writers: ${lastCalendarKeywordSearchMeta.matchedWriters}`);
+  lines.push(
+    `${
+      lastCalendarKeywordSearchMode === "date" ? "Writers with sessions" : "Matched writers"
+    }: ${lastCalendarKeywordSearchMeta.matchedWriters}`
+  );
   if (lastCalendarKeywordSearchMeta.skippedNoCalendar > 0) {
     lines.push(`Skipped (no calendar URL): ${lastCalendarKeywordSearchMeta.skippedNoCalendar}`);
   }
@@ -3802,14 +3918,21 @@ const buildCalendarKeywordReport = () => {
 
   lastCalendarKeywordSearchResults.forEach((group, idx) => {
     lines.push(`${idx + 1}. ${group.writerName} (${group.matches.length} matching event${group.matches.length === 1 ? "" : "s"})`);
+    if (lastCalendarKeywordSearchMode === "date" && group.availabilityLabel) {
+      lines.push(`Availability: ${group.availabilityLabel}`);
+    }
     lines.push(`Roster: ${group.roster || "n/a"}`);
-    group.matches.forEach((event, eventIdx) => {
-      lines.push(`  ${eventIdx + 1}) ${formatCalendarSearchMatchLine(event)}`);
-      if (event.description) {
-        const cleanDescription = String(event.description).replace(/\s+/g, " ").trim();
-        if (cleanDescription) lines.push(`     Notes: ${cleanDescription.slice(0, 240)}`);
-      }
-    });
+    if (!group.matches.length && lastCalendarKeywordSearchMode === "date") {
+      lines.push("  No sessions scheduled for this date.");
+    } else {
+      group.matches.forEach((event, eventIdx) => {
+        lines.push(`  ${eventIdx + 1}) ${formatCalendarSearchMatchLine(event)}`);
+        if (event.description) {
+          const cleanDescription = String(event.description).replace(/\s+/g, " ").trim();
+          if (cleanDescription) lines.push(`     Notes: ${cleanDescription.slice(0, 240)}`);
+        }
+      });
+    }
     lines.push("");
   });
 
@@ -3831,6 +3954,8 @@ const clearCalendarKeywordSearch = () => {
   lastCalendarKeywordSearch = "";
   lastCalendarKeywordSearchResults = [];
   lastCalendarKeywordSearchMeta = { scanned: 0, withCalendars: 0, matchedWriters: 0, skippedNoCalendar: 0 };
+  lastCalendarKeywordSearchMode = "keyword";
+  lastCalendarKeywordSearchDateLabel = "";
   if (calendarKeywordSearchInput) calendarKeywordSearchInput.value = "";
   if (calendarReportPanel) calendarReportPanel.classList.add("hidden");
   renderCalendarKeywordSearchResults();
@@ -3844,9 +3969,12 @@ const runCalendarKeywordSearch = async () => {
     lastCalendarKeywordSearchResults = [];
     lastCalendarKeywordSearchMeta = { scanned: 0, withCalendars: 0, matchedWriters: 0, skippedNoCalendar: 0 };
     lastCalendarKeywordSearchScopeLabel = "all published writers";
+    lastCalendarKeywordSearchMode = "keyword";
+    lastCalendarKeywordSearchDateLabel = "";
     renderCalendarKeywordSearchResults();
     return;
   }
+  const parsedDateQuery = parseDateFromCalendarQuery(keyword);
 
   const allPublishedWriters = getPublishedCalendarWriters();
   const writers =
@@ -3863,7 +3991,11 @@ const runCalendarKeywordSearch = async () => {
       ? `${selectedWriter?.name || "selected writer"}`
       : "all published writers";
 
-  setCalendarEventsStatus(`Searching ${scopeLabel} calendar${writers.length === 1 ? "" : "s"} for "${keyword}"...`);
+  setCalendarEventsStatus(
+    parsedDateQuery
+      ? `Checking ${scopeLabel} calendar${writers.length === 1 ? "" : "s"} for ${formatSearchDateLabel(parsedDateQuery.date)}...`
+      : `Searching ${scopeLabel} calendar${writers.length === 1 ? "" : "s"} for "${keyword}"...`
+  );
   if (calendarReportPanel) calendarReportPanel.classList.add("hidden");
 
   for (const writer of writers) {
@@ -3889,39 +4021,69 @@ const runCalendarKeywordSearch = async () => {
         writerCalendarEventsCache.set(writer.id, { cachedAt: Date.now(), events });
       }
 
-      const matches = events
-        .filter((evt) => getCalendarEventSearchText(evt).includes(keyword))
-        .sort((a, b) => a.start - b.start);
-      if (matches.length) {
+      if (parsedDateQuery) {
+        const targetStart = startOfDayLocal(parsedDateQuery.date);
+        const targetEnd = endOfDayLocal(parsedDateQuery.date);
+        const dayMatches = events
+          .filter((evt) => eventOverlapsWindow(evt, targetStart, targetEnd))
+          .sort((a, b) => a.start - b.start);
+        const now = new Date();
+        const availabilityLabel = dayMatches.length
+          ? targetEnd < now
+            ? "Session occurred"
+            : "Not available (scheduled)"
+          : targetEnd < now
+            ? "No session found"
+            : "Available";
         grouped.push({
           writerId: writer.id,
           writerName: writer.name || "Unnamed",
           roster: writer.roster || "",
-          matches,
+          matches: dayMatches,
+          availabilityLabel,
         });
+      } else {
+        const matches = events
+          .filter((evt) => getCalendarEventSearchText(evt).includes(keyword))
+          .sort((a, b) => a.start - b.start);
+        if (matches.length) {
+          grouped.push({
+            writerId: writer.id,
+            writerName: writer.name || "Unnamed",
+            roster: writer.roster || "",
+            matches,
+          });
+        }
       }
     } catch (_error) {
       // Ignore individual calendar failures for keyword search; keep scanning.
     }
   }
-
-  grouped.sort((a, b) => b.matches.length - a.matches.length || a.writerName.localeCompare(b.writerName));
+  if (parsedDateQuery) {
+    grouped.sort((a, b) => b.matches.length - a.matches.length || a.writerName.localeCompare(b.writerName));
+  } else {
+    grouped.sort((a, b) => b.matches.length - a.matches.length || a.writerName.localeCompare(b.writerName));
+  }
 
   lastCalendarKeywordSearch = keyword;
   lastCalendarKeywordSearchResults = grouped;
   lastCalendarKeywordSearchMeta = {
     scanned,
     withCalendars,
-    matchedWriters: grouped.length,
+    matchedWriters: parsedDateQuery ? grouped.filter((g) => g.matches.length > 0).length : grouped.length,
     skippedNoCalendar,
   };
   lastCalendarKeywordSearchScopeLabel = scopeLabel;
+  lastCalendarKeywordSearchMode = parsedDateQuery ? "date" : "keyword";
+  lastCalendarKeywordSearchDateLabel = parsedDateQuery ? formatSearchDateLabel(parsedDateQuery.date) : "";
 
   renderCalendarKeywordSearchResults();
   setCalendarEventsStatus(
-    grouped.length
-      ? `Keyword search complete (${scopeLabel}). ${grouped.length} writer(s) matched "${keyword}".`
-      : `Keyword search complete (${scopeLabel}). No matches for "${keyword}".`,
+    parsedDateQuery
+      ? `Date search complete (${scopeLabel}). ${grouped.filter((g) => g.matches.length > 0).length} writer(s) have session(s) on ${formatSearchDateLabel(parsedDateQuery.date)}.`
+      : grouped.length
+        ? `Keyword search complete (${scopeLabel}). ${grouped.length} writer(s) matched "${keyword}".`
+        : `Keyword search complete (${scopeLabel}). No matches for "${keyword}".`,
     false
   );
 };
@@ -5844,20 +6006,21 @@ if (calendarWriterList) {
 
 if (calendarSectionWritersButton) {
   calendarSectionWritersButton.addEventListener("click", () => {
-    setCalendarSection("writers");
+    setCalendarSection(activeCalendarSection === "writers" ? "" : "writers");
   });
 }
 
 if (calendarSectionSearchButton) {
   calendarSectionSearchButton.addEventListener("click", () => {
-    setCalendarSection("search");
-    loadSelectedWriterCalendarEvents();
+    const nextSection = activeCalendarSection === "search" ? "" : "search";
+    setCalendarSection(nextSection);
+    if (nextSection === "search") loadSelectedWriterCalendarEvents();
   });
 }
 
 if (calendarSectionSettingsButton) {
   calendarSectionSettingsButton.addEventListener("click", () => {
-    setCalendarSection("settings");
+    setCalendarSection(activeCalendarSection === "settings" ? "" : "settings");
   });
 }
 
@@ -6008,7 +6171,7 @@ syncProducerOptionsUi();
 syncPublishedRosterSlotsUi();
 setCalendarMenuOpen(false);
 setCalendarEventsViewMode("list");
-setCalendarSection("writers");
+setCalendarSection("");
 setCalendarStatus("iCloud mode active.");
 setScheduleStatus("");
 setPairingQueueStatus("");
