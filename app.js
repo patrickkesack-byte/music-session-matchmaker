@@ -3579,7 +3579,7 @@ const renderCalendarWriterList = () => {
     if (calendarEventsList) {
       calendarEventsList.innerHTML = "<p class='hint'>Add published writers to use the calendar view.</p>";
     }
-    if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar Events";
+    if (calendarEventsTitle) calendarEventsTitle.textContent = "";
     setCalendarKeywordPlaceholder();
     setCalendarEventsStatus("");
     selectedCalendarWriterId = null;
@@ -3642,7 +3642,7 @@ const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
   setCalendarKeywordPlaceholder();
   if (selectedCalendarWriterId === ALL_CALENDAR_WRITERS_ID) {
     setCalendarViewControlsVisibility(false);
-    if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar";
+    if (calendarEventsTitle) calendarEventsTitle.textContent = "";
     calendarEventsList.innerHTML = "";
     setCalendarEventsStatus("");
     return;
@@ -3651,7 +3651,7 @@ const loadSelectedWriterCalendarEvents = async (forceRefresh = false) => {
 
   if (!writer) {
     setCalendarViewControlsVisibility(false);
-    if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar Events";
+    if (calendarEventsTitle) calendarEventsTitle.textContent = "";
     calendarEventsList.innerHTML = "<p class='hint'>Select a published writer to view events.</p>";
     setCalendarEventsStatus("");
     return;
@@ -3818,12 +3818,12 @@ const renderCalendarKeywordSearchResults = () => {
             ? calendarEventsViewMode === "calendar"
               ? `${selected.name} • ${formatCalendarMonthHeading(calendarMonthCursor)}`
               : `${selected.name}`
-            : "Calendar Events";
+            : "";
     }
     return;
   }
 
-  if (calendarEventsTitle) calendarEventsTitle.textContent = "Calendar";
+  if (calendarEventsTitle) calendarEventsTitle.textContent = "";
   calendarSearchResults.classList.remove("hidden");
   if (generateCalendarKeywordReportButton) {
     generateCalendarKeywordReportButton.classList.remove("hidden");
@@ -5584,14 +5584,22 @@ if (toggleAllSongwritersButton) {
   });
 }
 
-writerSearchInput.addEventListener("input", () => {
-  if (writerSearchInput.value.trim()) {
-    showAllSongwriters = false;
-  } else if (activeSongwriterSection === "list") {
-    showAllSongwriters = true;
-  }
-  renderSongwriters();
-});
+if (writerSearchInput) {
+  writerSearchInput.addEventListener("input", () => {
+    const query = writerSearchInput.value.trim();
+    if (query) {
+      // Search results live in the list panel, so open it automatically on input.
+      if (activeSongwriterSection !== "list") {
+        setSongwriterSection("list");
+        return;
+      }
+      showAllSongwriters = false;
+    } else if (activeSongwriterSection === "list") {
+      showAllSongwriters = true;
+    }
+    renderSongwriters();
+  });
+}
 
 if (briefSearchInput) {
   briefSearchInput.addEventListener("input", () => {
