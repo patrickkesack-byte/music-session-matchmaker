@@ -541,9 +541,14 @@ const normalizeProducerSubfilters = (values) =>
       .filter((x) => PRODUCER_SUBFILTER_OPTIONS.includes(x))
   );
 
+// Role matching is based on explicit role checkboxes (writer.roles), not freeform tags.
+// Directional logic:
+// - topliner search includes topliner + singer
+// - co-writer search includes co-writer + topliner + singer (+ legacy writer/songwriter values)
+// - producer search includes producer (+ legacy co-producer values)
 const ROLE_SEARCH_EQUIVALENTS = {
-  topliner: ["topliner", "singer", "co-writer", "writer", "songwriter"],
-  singer: ["singer", "topliner", "co-writer", "writer", "songwriter"],
+  topliner: ["topliner", "singer"],
+  singer: ["singer", "topliner"],
   producer: ["producer", "co-producer"],
   artist: ["artist"],
   "co-writer": ["co-writer", "writer", "songwriter", "topliner", "singer"],
@@ -1054,9 +1059,8 @@ const loadSongwriters = () => {
       changed = true;
       next = { ...next, roster: "" };
     }
-    const normalizedRoles = Array.isArray(next.roles)
-      ? normalizeRoles(next.roles)
-      : normalizeRoles((next.tags || []).filter((tag) => SEEKING_OPTIONS.includes(tag)));
+    // Do not infer roles from tags. Roles must come from explicit role fields/checks.
+    const normalizedRoles = Array.isArray(next.roles) ? normalizeRoles(next.roles) : [];
     const forceCoWriterNames = new Set(["brieanna grace", "benni ola"]);
     const normalizedName = String(next.name || "").trim().toLowerCase();
     const withOverrides = forceCoWriterNames.has(normalizedName)
@@ -2927,9 +2931,10 @@ const parseSongwriterCsv = (content) => {
     const calendarProvider = String(calendarProviderRaw).trim().toLowerCase() === "google" ? "google" : "icloud";
     const calendarName = calendarNameIndex >= 0 ? (row[calendarNameIndex] || "").trim() : "";
     const tags = ensureLocationTag(normalizeTagField(row[tagsIndex] || ""), location);
+    // Do not infer roles from tags during import.
     const roles = rolesIndex >= 0
       ? normalizeRoles(normalizeTagField(row[rolesIndex] || ""))
-      : normalizeRoles(tags.filter((tag) => SEEKING_OPTIONS.includes(tag)));
+      : [];
     const bio = (row[bioIndex] || "").trim();
     const notes = notesIndex >= 0 ? (row[notesIndex] || "").trim() : "";
     const roster = rosterIndex >= 0 ? (row[rosterIndex] || "").trim() : "";
@@ -4475,13 +4480,8 @@ const writerMatchesSeekingRole = (writer, role) => {
   const normalizedRole = String(role || "").trim().toLowerCase();
   if (!normalizedRole) return false;
   const equivalents = ROLE_SEARCH_EQUIVALENTS[normalizedRole] || [normalizedRole];
-  const roles = writer.roles || [];
-  const tags = writer.tags || [];
-  return equivalents.some(
-    (candidateRole) =>
-      roles.includes(candidateRole) ||
-      tags.some((tag) => tagMatchesQuery(tag, candidateRole))
-  );
+  const roles = unique((writer.roles || []).map((value) => canonicalizeRole(value)).filter(Boolean));
+  return equivalents.some((candidateRole) => roles.includes(canonicalizeRole(candidateRole)));
 };
 
 const TOPLINER_SUBFILTER_EQUIVALENTS = {

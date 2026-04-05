@@ -69,6 +69,7 @@
               <input
                 type="text"
                 id="ai-pairing-prompt"
+                class="prompt-input"
                 required
                 placeholder="what are you looking for?"
               />
@@ -224,7 +225,7 @@
 
       <section id="songwriters-view" class="view">
         <div class="card">
-          <input id="writer-search" type="text" placeholder="search for names, vibes, genres, roles etc..." />
+          <input id="writer-search" class="prompt-input" type="text" placeholder="search for names, vibes, genres, roles etc..." />
           <p id="songwriter-status" class="status"></p>
         </div>
 
@@ -330,22 +331,15 @@
       <section id="calendar-view" class="view">
         <div class="card">
           <div class="calendar-sections-tabs" role="tablist" aria-label="Calendar tools">
-            <button id="calendar-section-writers" type="button" class="ghost section-toggle active">Writers</button>
             <button id="calendar-section-search" type="button" class="ghost section-toggle">Search</button>
+            <button id="calendar-section-writers" type="button" class="ghost section-toggle">Published Writers</button>
             <button id="calendar-section-settings" type="button" class="ghost section-toggle">Settings</button>
-          </div>
-
-          <div id="calendar-panel-writers" class="calendar-section-panel">
-            <div class="calendar-sidebar">
-              <h2>Published Writers</h2>
-              <div id="calendar-writer-list" class="calendar-writer-list"></div>
-            </div>
           </div>
 
           <div id="calendar-panel-search" class="calendar-section-panel hidden">
             <div class="calendar-main">
               <div class="card-head">
-                <h2 id="calendar-events-title">Calendar Events</h2>
+                <h2 id="calendar-events-title"></h2>
                 <div class="card-head-actions">
                   <div class="calendar-view-toggle" role="tablist" aria-label="Calendar view mode">
                     <button id="calendar-view-list" type="button" class="ghost mini-btn active">List View</button>
@@ -355,7 +349,7 @@
                 </div>
               </div>
               <div class="calendar-search-tools">
-                <input id="calendar-keyword-search" type="text" placeholder="search collaborators for all published songwriters" />
+                <input id="calendar-keyword-search" class="prompt-input" type="text" placeholder="search dates, collaborators, past sessions etc..." />
                 <div class="form-actions compact-actions">
                   <button id="run-calendar-keyword-search" type="button" class="ghost">Search</button>
                   <button id="generate-calendar-keyword-report" type="button" class="ghost hidden" disabled>Generate Report</button>
@@ -377,6 +371,13 @@
                 <pre id="calendar-report-output"></pre>
                 <a id="download-calendar-report" class="ghost link-button" href="#" download="calendar-keyword-report.txt">Download Report</a>
               </div>
+            </div>
+          </div>
+
+          <div id="calendar-panel-writers" class="calendar-section-panel hidden">
+            <div class="calendar-sidebar">
+              <h2>Published Writers</h2>
+              <div id="calendar-writer-list" class="calendar-writer-list"></div>
             </div>
           </div>
 

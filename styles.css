@@ -735,6 +735,34 @@ textarea::placeholder {
   color: var(--muted);
 }
 
+.prompt-input,
+#ai-pairing-prompt,
+#writer-search,
+#calendar-keyword-search {
+  font-family: var(--font-ui) !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--ink) !important;
+}
+
+.prompt-input::placeholder,
+#ai-pairing-prompt::placeholder,
+#writer-search::placeholder,
+#calendar-keyword-search::placeholder {
+  color: var(--muted) !important;
+  -webkit-text-fill-color: var(--muted);
+  opacity: 1 !important;
+  font-family: var(--font-ui) !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
 select.placeholder {
   color: var(--muted);
 }
