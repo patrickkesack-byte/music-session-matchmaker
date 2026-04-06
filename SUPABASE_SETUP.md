@@ -30,3 +30,4 @@
 ## Notes
 - If you are logged in, Supabase sync is used for songwriters.
 - If you are not logged in, the app falls back to local storage (and optional shared API URL if configured).
+- Access is allowed for any `@insomniac.com` account plus the explicit allowlisted email `nicksheldon@me.com`.

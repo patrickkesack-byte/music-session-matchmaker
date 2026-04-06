@@ -19,6 +19,8 @@ const PAIRING_STATUS = {
 };
 const PAIRING_RESULTS_PAGE_SIZE = 10;
 const ORG_ALLOWED_EMAIL_DOMAIN = "insomniac.com";
+const ORG_ALLOWED_EMAILS = ["nicksheldon@me.com"];
+const ORG_ALLOWED_EMAIL_MESSAGE = `Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account or one of these approved emails: ${ORG_ALLOWED_EMAILS.join(", ")}.`;
 const SHARED_OWNER_ID = "00000000-0000-0000-0000-000000000001";
 const AUTO_LOGOUT_INACTIVITY_MS = 7 * 60 * 60 * 1000;
 const ACTIVITY_PERSIST_MIN_MS = 60 * 1000;
@@ -1385,7 +1387,7 @@ const stopSupabasePolling = () => {
 const isOrgSupabaseUser = (user) => {
   const email = String(user?.email || "").trim().toLowerCase();
   if (!email || !email.includes("@")) return false;
-  return email.endsWith(`@${ORG_ALLOWED_EMAIL_DOMAIN}`);
+  return email.endsWith(`@${ORG_ALLOWED_EMAIL_DOMAIN}`) || ORG_ALLOWED_EMAILS.includes(email);
 };
 
 const canUseSupabase = () =>
@@ -1531,7 +1533,7 @@ const initSupabaseClient = async () => {
       supabaseUser = null;
       clearAutoLogoutTimer();
       clearAuthActivity();
-      setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
+      setSharedSyncStatus(ORG_ALLOWED_EMAIL_MESSAGE, true);
     }
     if (supabaseUser) {
       if (getLastAuthActivityMs()) {
@@ -1553,7 +1555,7 @@ const initSupabaseClient = async () => {
     supabaseClient.auth.onAuthStateChange((event, session) => {
       supabaseUser = session?.user || null;
       if (supabaseUser && !isOrgSupabaseUser(supabaseUser)) {
-        setSharedSyncStatus(`Use an @${ORG_ALLOWED_EMAIL_DOMAIN} account.`, true);
+        setSharedSyncStatus(ORG_ALLOWED_EMAIL_MESSAGE, true);
         supabaseClient.auth.signOut();
         supabaseUser = null;
       }
